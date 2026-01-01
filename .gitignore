@@ -1,0 +1,33 @@
+# Node modules
+node_modules/
+
+# Session and user data
+linkedin_session.json
+linkedin_user_data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+.env.local
+
+# Debug screenshots
+debug_*.png
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Generated reports
+leads_report.json
+scraped_data.json
+
+# Temporary files
+*.tmp
+*.temp

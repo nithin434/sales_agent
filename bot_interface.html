@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>WOAT - Bot Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+            background-color: #0d1117;
+            color: #e6edf3;
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+          .header {
+            text-align: center;
+            padding: 48px 0;
+            border-bottom: 1px solid #21262d;
+            margin-bottom: 32px;
+            position: relative;
+        }
+        
+        .header h1 {
+            font-size: 32px;
+            font-weight: 600;
+            color: #f0f6fc;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            font-size: 16px;
+            color: #8b949e;
+            margin-bottom: 16px;
+        }
+
+        .remove-session-btn {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            background: transparent;
+            border: 1px solid #f85149;
+            color: #f85149;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: none;
+        }
+
+        .remove-session-btn:hover {
+            background: #f85149;
+            color: #ffffff;
+        }
+
+        .remove-session-btn.show {
+            display: block;
+        }
+
+        .source-info {
+            font-size: 14px;
+            color: #7d8590;
+            margin-bottom: 8px;
+        }
+
+        .source-info a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .source-info a:hover {
+            text-decoration: underline;
+        }
+
+        .contact-info {
+            font-size: 14px;
+            color: #7d8590;
+        }
+
+        .contact-info a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .contact-info a:hover {
+            text-decoration: underline;
+        }
+
+        .login-section {
+            max-width: 400px;
+            margin: 0 auto;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 32px;
+        }
+
+        .login-section h2 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .credentials-info {
+            background: linear-gradient(135deg, rgba(13, 17, 23, 0.8) 0%, rgba(22, 27, 34, 0.8) 100%);
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            color: #8b949e;
+            position: relative;
+        }
+
+        .credentials-info::before {
+            content: "🔒";
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        .secure-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .main-content {
+            display: none;
+        }
+        
+        .bot-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .bot-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 24px;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+        
+        .bot-card:hover {
+            border-color: #58a6ff;
+        }
+        
+        .bot-card.active {
+            border-color: #58a6ff;
+            background: linear-gradient(135deg, rgba(88, 166, 255, 0.1) 0%, rgba(102, 126, 234, 0.1) 100%);
+        }
+        
+        .bot-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #f0f6fc;
+        }
+        
+        .bot-card p {
+            color: #8b949e;
+            font-size: 14px;
+        }
+        
+        .bot-controls {
+            display: none;
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .bot-controls h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            color: #f0f6fc;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+            ;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #f0f6fc;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            color: #e6edf3;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #58a6ff;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.3);
+        }
+
+        .form-group small {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #7d8590;
+        }
+        
+        .info-box {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+        
+        .info-box h4 {
+            color: #f0f6fc;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .info-box p {
+            color: #8b949e;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .info-box ul {
+            color: #8b949e;
+            font-size: 14px;
+            margin-left: 20px;
+        }
+
+        .info-box code {
+            background: #161b22;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12px;
+            color: #f85149;
+        }
+
+        .info-box a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .info-box a:hover {
+            text-decoration: underline;
+        }
+
+        .monitoring-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 16px 0;
+        }
+        
+        .btn {
+            background: #238636;
+            color: #ffffff;
+            border: 1px solid rgba(240, 246, 252, 0.1);
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .btn:hover {
+            background: #2ea043;
+        }
+        
+        .btn-danger {
+            background: #da3633;
+        }
+
+        .btn-danger:hover {
+            background: #f85149;
+        }
+        
+        .btn-primary {
+            background: #1f6feb;
+        }
+
+        .btn-primary:hover {
+            background: #388bfd;
+        }
+        
+        .status-section {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 24px;
+        }
+
+        .status-section h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #f0f6fc;
+        }
+        
+        .status-display {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 14px;
+            color: #e6edf3;
+            margin-bottom: 16px;
+        }
+        
+        .logs-container {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            height: 600px;
+            overflow-y: auto;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            color: #7d8590;
+        }
+        
+        .success {
+            color: #3fb950;
+            font-weight: 500;
+        }
+        
+        .error {
+            color: #f85149;
+            font-weight: 500;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            font-weight: 400;
+            color: #e6edf3;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .bot-selection {
+                grid-template-columns: 1fr;
+            }
+            
+            .monitoring-section {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 16px;
+            }
+            
+            .logs-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">        <div class="header">
+            <button class="remove-session-btn" id="removeSessionBtn" onclick="removeSession()">Remove Session</button>
+            <h1>WOAT Bot Control Panel</h1>
+            <p>Manage your WhatsApp and Instagram bots from one place</p>
+            <!-- <div class="source-info">
+                Source code: <a href="https://github.com/nithin434/woat.git" target="_blank">github.com/nithin434/woat</a>
+            </div>
+            <div class="contact-info">
+                Contact or report issues: <a href="mailto:nithinjambula89@gmail.com">nithinjambula89@gmail.com</a> | 
+                LinkedIn: <a href="https://www.linkedin.com/in/nithin-jambula/" target="_blank">Nithin Jambula</a>
+            </div> -->
+        </div>
+          <!-- Login Section -->
+        <div class="login-section" id="loginSection" style="max-width: 500px;">
+            <h2>Enter Your Session Details</h2>
+            <div class="credentials-info">
+                <div class="secure-badge">🔐 SECURE SESSION</div>
+                <br>
+                <strong>Important:</strong> These credentials will be your unique session identifiers. 
+                Please store them securely and use the same credentials to access your session again.
+                
+                All data is encrypted and stored securely.
+            </div>
+            <div class="form-group">
+                <label for="emailAddress">Email Address:</label>
+                <input type="email" id="emailAddress" placeholder="your.email@example.com" required>
+                <small>🔐 Optional but recommended for security and account recovery if you lose access</small>
+            </div>
+            <div class="form-group">
+                <label for="uniqueId">Unique ID:</label>
+                <input type="text" id="uniqueId" placeholder="Name..">
+            </div>
+            <div class="form-group">
+                <label for="secretKey">Secret Key:</label>
+                <input type="password" id="secretKey" placeholder="Create a strong secret key">
+                <small>🔐 Use a combination of letters, numbers, and symbols for maximum security</small>
+            </div>                <button class="btn btn-primary" onclick="verifySession()">🚀 Access Control Panel</button>
+                <button class="btn" onclick="testConnection()" style="margin-top: 10px;">🔧 Test Server Connection</button>
+                <div id="loginStatus" style="margin-top: 20px;"></div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="main-content" id="mainContent">
+            <!-- Bot Selection -->            <div class="bot-selection">
+                <div class="bot-card" id="whatsappCard" onclick="selectBot('whatsapp')">
+                    <h3>WhatsApp Bot</h3>
+                    <p>Automatically respond to WhatsApp messages with AI-powered responses. Perfect for business or personal use.</p>
+                </div>
+                <div class="bot-card" id="instagramCard" onclick="selectBot('instagram')">
+                    <h3>Instagram Bot</h3>
+                    <p>Auto-reply to Instagram DMs. Monitor conversations and respond intelligently to your followers.</p>
+                </div>
+            </div>
+              <!-- WhatsApp Bot Controls -->
+            <div class="bot-controls" id="whatsappControls">
+                <h3>WhatsApp Bot Configuration</h3>
+                <div class="form-group">
+                    <label for="whatsappPersonality">Bot Personality:</label>
+                    <textarea id="whatsappPersonality" rows="4" placeholder="Describe how the bot should respond...">You are responding as the owner of this WhatsApp account. Be casual, friendly, and authentic. Keep responses under 40 words and use normal punctuation only.</textarea>
+                </div>
+                  <div class="info-box">
+                    <h4>WhatsApp Contact Monitoring Format</h4>
+                    <p><strong>Option 1:</strong> Monitor ALL contacts - Type <code>ALL</code></p>
+                    <p><strong>Option 2:</strong> Specific contacts - One per line:</p>
+                    <ul>
+                        <li><code>+1234567890</code> (phone number with country code)</li>
+                        <li><code>John Doe</code> (contact name as saved in your phone)</li>
+                        <li><code>@john_username</code> (WhatsApp username if available)</li>
+                    </ul>
+                </div>
+                
+                <div class="monitoring-section">
+                    <div class="form-group">
+                        <label for="whatsappContacts">Monitor Contacts (one per line):</label>
+                        <textarea id="whatsappContacts" rows="4" placeholder="ALL&#10;&#10;Or specific contacts:&#10;+1234567890&#10;John Doe&#10;@username">ALL</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="whatsappExclude">Exclude Contacts (one per line):</label>
+                        <textarea id="whatsappExclude" rows="4" placeholder="Numbers or names to exclude:&#10;+9876543210&#10;Spam Contact&#10;Work Group"></textarea>
+                    </div>
+                </div>
+                
+                <button class="btn" onclick="startWhatsAppBot()">Start WhatsApp Bot</button>
+                <button class="btn btn-danger" onclick="stopBot('whatsapp')">Stop Bot</button>
+            </div>
+            
+            <!-- Instagram Bot Controls -->
+            <div class="bot-controls" id="instagramControls">
+                <h3>Instagram Bot Configuration</h3>
+                <div class="form-group">
+                    <label for="instagramPersonality">Bot Personality:</label>
+                    <textarea id="instagramPersonality" rows="4" placeholder="Describe how the bot should respond...">You are Nithin responding to Instagram DMs. Be casual, friendly, and authentic. Keep responses under 40 words and use normal punctuation only.</textarea>
+                </div>                <div class="form-group">
+                    <label for="cookiesFile">Instagram Cookies File (JSON format):</label>
+                    <input type="file" id="cookiesFile" accept=".json">
+                    <small>Use the browser extension to export cookies: <a href="https://chromewebstore.google.com/detail/cmbkolgnkghmgajbbapoicfhjlabmpef" target="_blank">Export cookies to JSON</a></small>
+                </div>
+                
+                <div class="info-box">
+                    <h4>Instagram Bot Setup Guide</h4>
+                    <p><strong>Step 1:</strong> Install the Chrome extension and export Instagram cookies to JSON</p>
+                    <p><strong>Step 2:</strong> Get conversation IDs from Instagram Direct URLs:</p>
+                    <ul>
+                        <li>Open Instagram in browser and go to Direct Messages</li>
+                        <li>Click on a conversation, copy the URL</li>
+                        <li>URL format: <code>instagram.com/direct/t/CONVERSATION_ID/</code></li>
+                        <li>Extract the <code>CONVERSATION_ID</code> part (long number)</li>
+                    </ul>
+                    <p><strong>Example:</strong> <code>17844616119022755</code></p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="instagramUsers">Conversation IDs to Monitor (one per line):</label>
+                    <textarea id="instagramUsers" rows="4" placeholder="17844616119022755&#10;29877545839276&#10;18234567890123&#10;...">17844616119022755</textarea>
+                    <small>Tip: Each line should contain one conversation ID (numbers only)</small>
+                </div>
+                <button class="btn" onclick="startInstagramBot()">Start Instagram Bot</button>
+                <button class="btn btn-danger" onclick="stopBot('instagram')">Stop Bot</button>
+            </div>
+            
+            <!-- Status Section -->
+            <div class="status-section">
+                <h3>Bot Status & Logs</h3>
+                <div class="status-display" id="statusDisplay">
+                    Ready to start your bots...
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="autoRefresh" checked> Auto-refresh logs every 3 seconds
+                    </label>
+                </div>
+                <button class="btn" onclick="refreshLogs()">Refresh Logs</button>
+                <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                <div class="logs-container" id="logsContainer">
+                    No logs available yet...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUniqueId = null;
+        let currentSecretKey = null;
+        let selectedBot = null;
+        let autoRefreshInterval = null;
+        
+        // API Configuration for local development
+        const API_BASE = window.location.protocol + '//' + window.location.hostname + ':3000';
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            showLoginScreen();
+        });
+
+        // Show login screen
+        function showLoginScreen() {
+            document.getElementById('loginSection').innerHTML = `
+                <h2>Access Bot Control Panel</h2>
+                <div class="credentials-info">
+                    <div class="secure-badge">SECURE</div>
+                    <p><strong>First time?</strong> Enter any unique ID and secret key to create your session.</p>
+                    <p><strong>Returning?</strong> Use your existing credentials to access your bots.</p>
+                </div>
+                <div class="form-group">
+                    <label for="uniqueId">Unique ID:</label>
+                    <input type="text" id="uniqueId" placeholder="e.g., myname@gmail.com or any unique identifier">
+                </div>
+                <div class="form-group">
+                    <label for="secretKey">Secret Key:</label>
+                    <input type="password" id="secretKey" placeholder="Enter your secret key">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email (optional):</label>
+                    <input type="email" id="email" placeholder="For notifications (optional)">
+                </div>
+                <button class="btn btn-primary" onclick="verifySession()">Access Panel</button>
+            `;
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('removeSessionBtn').classList.remove('show');
+        }
+
+        // Test server connection
+        async function testConnection() {
+            const statusDiv = document.getElementById('loginStatus');
+            statusDiv.innerHTML = '<p style="color: #58a6ff;">Testing connection to server...</p>';
+            
+            try {
+                console.log('Testing connection to:', API_BASE);
+                
+                // Test basic health endpoint
+                const response = await fetch(`${API_BASE}/health`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', [...response.headers.entries()]);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('Health check result:', result);
+                    statusDiv.innerHTML = `
+                        <div style="color: #3fb950;">
+                            <p>✅ Server connection successful!</p>
+                            <p>Server status: ${result.status}</p>
+                            <p>Server time: ${result.timestamp}</p>
+                            <p>CORS: ${result.cors}</p>
+                        </div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `
+                        <div style="color: #f85149;">
+                            <p>❌ Server responded with error: ${response.status}</p>
+                            <p>Please check if the server is running</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                statusDiv.innerHTML = `
+                    <div style="color: #f85149;">
+                        <p>❌ Connection failed: ${error.message}</p>
+                        <p>Please check:</p>
+                        <ul style="text-align: left; margin-left: 20px;">
+                            <li>Server is running</li>
+                            <li>Cloudflare tunnel is active</li>
+                            <li>API_BASE URL is correct</li>
+                            <li>CORS is properly configured</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+
+        // Verify session credentials
+        async function verifySession() {
+            const uniqueId = document.getElementById('uniqueId').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+            const email = document.getElementById('email').value.trim();
+
+            if (!uniqueId || !secretKey) {
+                alert('Please enter both unique ID and secret key');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/verify-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ uniqueId, secretKey, email })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    currentUniqueId = uniqueId;
+                    currentSecretKey = secretKey;
+                    showMainInterface();
+                    updateStatus('Session verified successfully', 'success');
+                } else {
+                    alert(`Error: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error verifying session:', error);
+                alert('Error connecting to server. Please check if the server is running.');
+            }
+        }
+
+        // Show main interface after successful login
+        function showMainInterface() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            document.getElementById('removeSessionBtn').classList.add('show');
+            
+            document.getElementById('mainContent').innerHTML = `
+                <!-- Bot Selection -->
+                <div class="bot-selection">
+                    <div class="bot-card" onclick="selectBot('whatsapp')">
+                        <h3>WhatsApp Bot</h3>
+                        <p>Automated responses for WhatsApp messages using AI-powered conversations</p>
+                    </div>
+                    <div class="bot-card" onclick="selectBot('instagram')">
+                        <h3>Instagram Bot</h3>
+                        <p>Monitor and respond to Instagram Direct Messages automatically</p>
+                    </div>
+                </div>
+
+                <!-- WhatsApp Bot Controls -->
+                <div class="bot-controls" id="whatsappControls">
+                    <h3>WhatsApp Bot Configuration</h3>
+                    <div class="form-group">
+                        <label for="whatsappPersonality">Bot Personality:</label>
+                        <textarea id="whatsappPersonality" rows="4" placeholder="Describe how the bot should respond...">You are responding as the owner of this WhatsApp account. Be casual, friendly, and authentic. Keep responses under 40 words and use normal punctuation only.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="monitorContacts">Monitor Contacts:</label>
+                        <input type="text" id="monitorContacts" value="ALL" placeholder="ALL or specific contact names/numbers">
+                        <small>Use "ALL" to monitor everyone, or specify contact names/numbers separated by commas</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="excludeContacts">Exclude Contacts:</label>
+                        <input type="text" id="excludeContacts" placeholder="Contact names/numbers to exclude (comma separated)">
+                        <small>Contacts that should never receive auto-replies</small>
+                    </div>
+                    <button class="btn" onclick="startWhatsAppBot()">Start WhatsApp Bot</button>
+                    <button class="btn btn-danger" onclick="stopBot('whatsapp')">Stop Bot</button>
+                </div>
+
+                <!-- Instagram Bot Controls -->
+                <div class="bot-controls" id="instagramControls">
+                    <h3>Instagram Bot Configuration</h3>
+                    <div class="form-group">
+                        <label for="instagramPersonality">Bot Personality:</label>
+                        <textarea id="instagramPersonality" rows="4" placeholder="Describe how the bot should respond...">You are Nithin responding to Instagram DMs. Be casual, friendly, and authentic. Keep responses under 40 words and use normal punctuation only.</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="cookiesFile">Instagram Cookies File (JSON format):</label>
+                        <input type="file" id="cookiesFile" accept=".json">
+                        <small>Use browser extension to export cookies: <a href="https://chromewebstore.google.com/detail/okpidcojinmlaakglciglbpcpajaibco?utm_source=item-share-cb" target="_blank">Export cookies to JSON</a></small>
+                    </div>
+                    <div class="info-box">
+                        <h4>Instagram Bot Setup Guide</h4>
+                        <p><strong>Step 1:</strong> Install the Chrome extension and export Instagram cookies to JSON</p>
+                        <p><strong>Step 2:</strong> Get conversation IDs from Instagram Direct URLs:</p>
+                        <ul>
+                            <li>Open Instagram in browser and go to Direct Messages</li>
+                            <li>Click on a conversation, copy the URL</li>
+                            <li>URL format: <code>instagram.com/direct/t/CONVERSATION_ID/</code></li>
+                            <li>Extract the <code>CONVERSATION_ID</code> part (long number)</li>
+                        </ul>
+                        <p><strong>Example:</strong> <code>17844616119022755</code></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="instagramUsers">Conversation IDs to Monitor (one per line):</label>
+                        <textarea id="instagramUsers" rows="4" placeholder="17844616119022755&#10;29877545839276&#10;18234567890123&#10;...">17844616119022755</textarea>
+                        <small>Tip: Each line should contain one conversation ID (numbers only)</small>
+                    </div>
+                    <button class="btn" onclick="startInstagramBot()">Start Instagram Bot</button>
+                    <button class="btn btn-danger" onclick="stopBot('instagram')">Stop Bot</button>
+                </div>
+
+                <!-- Status Section -->
+                <div class="status-section">
+                    <h3>Bot Status & Logs</h3>
+                    <div class="status-display" id="statusDisplay">
+                        Ready to start your bots...
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="autoRefresh" checked> Auto-refresh logs every 3 seconds
+                        </label>
+                    </div>
+                    <button class="btn" onclick="refreshLogs()">Refresh Logs</button>
+                    <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                    <div class="logs-container" id="logsContainer">
+                        No logs available yet...
+                    </div>
+                </div>
+            `;
+
+            startAutoRefresh();
+        }
+
+        // Select bot type
+        function selectBot(botType) {
+            // Remove active class from all cards
+            document.querySelectorAll('.bot-card').forEach(card => {
+                card.classList.remove('active');
+            });
+
+            // Add active class to selected card
+            event.target.closest('.bot-card').classList.add('active');
+
+            // Hide all controls
+            document.querySelectorAll('.bot-controls').forEach(control => {
+                control.style.display = 'none';
+            });
+
+            // Show selected bot controls
+            document.getElementById(botType + 'Controls').style.display = 'block';
+            selectedBot = botType;
+        }
+
+        // Start WhatsApp Bot
+        async function startWhatsAppBot() {
+            const personality = document.getElementById('whatsappPersonality').value;
+            const contacts = document.getElementById('monitorContacts').value;
+            const excludeContacts = document.getElementById('excludeContacts').value;
+
+            const formData = new FormData();
+            formData.append('uniqueId', currentUniqueId);
+            formData.append('personality', personality);
+            formData.append('contacts', contacts);
+            formData.append('excludeContacts', excludeContacts);
+
+            try {
+                updateStatus('Starting WhatsApp bot...', 'info');
+                
+                const response = await fetch(`${API_BASE}/start-whatsapp`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus('WhatsApp bot started successfully! Check logs below.', 'success');
+                    startAutoRefresh();
+                } else {
+                    updateStatus(`Error starting WhatsApp bot: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error starting WhatsApp bot:', error);
+                updateStatus('Error connecting to server', 'error');
+            }
+        }
+
+        // Start Instagram Bot
+        async function startInstagramBot() {
+            const cookiesFile = document.getElementById('cookiesFile').files[0];
+            const personality = document.getElementById('instagramPersonality').value;
+            const usersText = document.getElementById('instagramUsers').value;
+
+            if (!cookiesFile) {
+                alert('Please select a cookies file');
+                return;
+            }
+
+            // Parse users from textarea
+            const users = usersText.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            const formData = new FormData();
+            formData.append('uniqueId', currentUniqueId);
+            formData.append('personality', personality);
+            formData.append('users', JSON.stringify(users));
+            formData.append('cookies', cookiesFile);
+
+            try {
+                updateStatus('Starting Instagram bot...', 'info');
+                
+                const response = await fetch(`${API_BASE}/start-instagram`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus('Instagram bot started successfully! Check logs below.', 'success');
+                    startAutoRefresh();
+                } else {
+                    updateStatus(`Error starting Instagram bot: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error starting Instagram bot:', error);
+                updateStatus('Error connecting to server', 'error');
+            }
+        }
+
+        // Stop bot
+        async function stopBot(botType) {
+            try {
+                updateStatus(`Stopping ${botType} bot...`, 'info');
+                
+                const response = await fetch(`${API_BASE}/stop-bot`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uniqueId: currentUniqueId,
+                        botType: botType
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus(`${botType} bot stopped successfully`, 'success');
+                } else {
+                    updateStatus(`Error stopping ${botType} bot: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error stopping bot:', error);
+                updateStatus('Error connecting to server', 'error');
+            }
+        }
+
+        // Refresh logs
+        async function refreshLogs() {
+            if (!currentUniqueId || !selectedBot) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/bot-status/${currentUniqueId}/${selectedBot}`);
+                const result = await response.json();
+
+                const logsContainer = document.getElementById('logsContainer');
+                if (result.logs) {
+                    logsContainer.textContent = result.logs;
+                    logsContainer.scrollTop = logsContainer.scrollHeight;
+                }
+
+                // Update status display
+                const statusDisplay = document.getElementById('statusDisplay');
+                statusDisplay.textContent = result.running ? 
+                    `${selectedBot} bot is running` : 
+                    `${selectedBot} bot is stopped`;
+                statusDisplay.className = `status-display ${result.running ? 'success' : 'error'}`;
+
+            } catch (error) {
+                console.error('Error refreshing logs:', error);
+            }
+        }
+
+        // Clear logs
+        function clearLogs() {
+            document.getElementById('logsContainer').textContent = 'Logs cleared...';
+        }
+
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDisplay = document.getElementById('statusDisplay');
+            statusDisplay.textContent = message;
+            statusDisplay.className = `status-display ${type}`;
+        }
+
+        // Start auto-refresh
+        function startAutoRefresh() {
+            stopAutoRefresh();
+            const autoRefreshCheckbox = document.getElementById('autoRefresh');
+            
+            if (autoRefreshCheckbox && autoRefreshCheckbox.checked) {
+                autoRefreshInterval = setInterval(refreshLogs, 3000);
+            }
+        }
+
+        // Stop auto-refresh
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Remove session
+        async function removeSession() {
+            if (!confirm('Are you sure you want to remove this session? This will stop all bots and delete session data.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/remove-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uniqueId: currentUniqueId
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Session removed successfully');
+                    currentUniqueId = null;
+                    currentSecretKey = null;
+                    selectedBot = null;
+                    stopAutoRefresh();
+                    showLoginScreen();
+                } else {
+                    alert(`Error removing session: ${result.message}`);
+                }
+            } catch (error) {
+                console.error('Error removing session:', error);
+                alert('Error connecting to server');
+            }
+        }
+
+        // Handle auto-refresh checkbox change
+        document.addEventListener('change', function(e) {
+            if (e.target.id === 'autoRefresh') {
+                if (e.target.checked) {
+                    startAutoRefresh();
+                } else {
+                    stopAutoRefresh();
+                }
+            }
+        });
+
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>
