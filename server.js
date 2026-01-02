@@ -98,6 +98,10 @@ db.serialize(() => {
 
 // Bot processes storage
 const activeBots = new Map();
+const sessionCreators = new Map();
+
+// Import session creator
+const LinkedInSessionCreator = require('./manual_session_creator.js');
 
 // Function to sanitize session ID for file system
 function sanitizeSessionId(sessionId) {
@@ -147,6 +151,101 @@ app.get('/cors-test', (req, res) => {
         userAgent: req.headers['user-agent'] || 'unknown',
         timestamp: new Date().toISOString(),
         headers: req.headers
+    });
+});
+
+// Create LinkedIn session
+app.post('/create-session', (req, res) => {
+    const { uniqueId } = req.body;
+    
+    console.log(`Session creation request for: ${uniqueId}`);
+    
+    if (!uniqueId) {
+        return res.status(400).json({ success: false, message: 'Session ID is required' });
+    }
+    
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const sessionDir = path.join(__dirname, 'sessions', sanitizedId);
+    
+    // Create session directory
+    if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+    }
+    
+    // Copy manual session creator to session directory
+    const originalCreator = path.join(__dirname, 'manual_session_creator.js');
+    const sessionCreator = path.join(sessionDir, 'manual_session_creator.js');
+    if (fs.existsSync(originalCreator)) {
+        fs.copyFileSync(originalCreator, sessionCreator);
+    }
+    
+    // Copy package.json for dependencies
+    const originalPackage = path.join(__dirname, 'package.json');
+    const sessionPackage = path.join(sessionDir, 'package.json');
+    if (fs.existsSync(originalPackage)) {
+        fs.copyFileSync(originalPackage, sessionPackage);
+    }
+    
+    // Check if session creator is already running
+    const creatorKey = `creator_${uniqueId}`;
+    if (sessionCreators.has(creatorKey)) {
+        return res.json({ 
+            success: false, 
+            message: 'Session creator is already running for this session'
+        });
+    }
+    
+    console.log(`Starting session creator for: ${uniqueId}`);
+    console.log(`Session directory: ${sessionDir}`);
+    
+    // Start session creator process
+    const creatorProcess = spawn('node', ['manual_session_creator.js'], {
+        cwd: sessionDir,
+        env: { 
+            ...process.env, 
+            SESSION_ID: uniqueId,
+            SANITIZED_SESSION_ID: sanitizedId
+        },
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    const logFile = path.join(sessionDir, 'session_creator.log');
+    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    
+    logStream.write(`\n=== Session Creator Started: ${new Date().toISOString()} ===\n`);
+    
+    creatorProcess.stdout.on('data', (data) => {
+        console.log(`Session Creator ${uniqueId}:`, data.toString().trim());
+        logStream.write(`[STDOUT] ${data}`);
+    });
+    
+    creatorProcess.stderr.on('data', (data) => {
+        console.error(`Session Creator ${uniqueId} ERROR:`, data.toString().trim());
+        logStream.write(`[STDERR] ${data}`);
+    });
+    
+    creatorProcess.on('close', (code) => {
+        console.log(`Session creator ${uniqueId} exited with code ${code}`);
+        logStream.write(`\n=== Process Exited: ${code} at ${new Date().toISOString()} ===\n`);
+        logStream.end();
+        sessionCreators.delete(creatorKey);
+    });
+    
+    creatorProcess.on('error', (error) => {
+        console.error(`Session creator ${uniqueId} process error:`, error);
+        logStream.write(`\n=== Process Error: ${error.message} at ${new Date().toISOString()} ===\n`);
+        logStream.end();
+        sessionCreators.delete(creatorKey);
+    });
+    
+    sessionCreators.set(creatorKey, creatorProcess);
+    
+    res.json({ 
+        success: true, 
+        message: 'LinkedIn session creator started successfully. Please complete login in the browser.',
+        sessionDir: sanitizedId,
+        instructions: 'A browser will open. Please log in to LinkedIn and wait for the session to be saved.',
+        logFile: 'session_creator.log'
     });
 });
 
@@ -381,6 +480,272 @@ app.post('/start-instagram', upload.single('cookies'), (req, res) => {
     res.json({ success: true, message: 'Instagram bot started successfully' });
 });
 
+// Start LinkedIn bot
+app.post('/start-linkedin', upload.none(), (req, res) => {
+    const { uniqueId, personality, portfolioLink, testMode } = req.body;
+    
+    console.log(`LinkedIn bot start request for session: ${uniqueId}`);
+    console.log(`Request body:`, { uniqueId, personality: personality?.length, portfolioLink, testMode });
+    
+    if (!uniqueId) {
+        return res.status(400).json({ success: false, message: 'Session ID is required' });
+    }
+    
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const sessionDir = path.join(__dirname, 'sessions', sanitizedId, 'linkedin');
+    
+    if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+    }
+    
+    // Write configuration files
+    fs.writeFileSync(path.join(sessionDir, 'personality.txt'), personality || 'You are Nithin responding to LinkedIn messages. Be professional yet friendly, and authentic. Keep responses casual and under 30 words.');
+    fs.writeFileSync(path.join(sessionDir, 'portfolio_link.txt'), portfolioLink || 'https://your-portfolio-link.com');
+    fs.writeFileSync(path.join(sessionDir, 'test_mode.txt'), testMode ? 'true' : 'false');
+    fs.writeFileSync(path.join(sessionDir, 'original_session_id.txt'), uniqueId);
+    
+    // Check if LinkedIn session exists
+    const linkedinSessionFile = path.join(__dirname, 'linkedin_session.json');
+    if (!fs.existsSync(linkedinSessionFile)) {
+        return res.status(400).json({ 
+            success: false, 
+            message: 'LinkedIn session not found. Please create a session first using the "Create Session" button.',
+            needsSession: true
+        });
+    }
+    
+    // Write business context
+    const businessContext = `Services Offered:
+- Custom Software Development
+- Web & Mobile App Development  
+- AI/ML Integration & Automation
+- Cloud Solutions & DevOps
+- MVP Development for Startups
+- Full-stack Development Teams
+
+Technologies:
+React, Node.js, Python, AWS, Azure, MongoDB, PostgreSQL, Docker, Kubernetes
+
+Business Focus:
+Professional LinkedIn automation for lead generation and client communication. Specializing in software development services with AI-powered response generation.`;
+    fs.writeFileSync(path.join(sessionDir, 'business_context.txt'), businessContext);
+    
+    // Copy bot files to session directory
+    const originalBot = path.join(__dirname, 'scraper_v2.js');
+    const sessionBot = path.join(sessionDir, 'scraper_v2.js');
+    if (fs.existsSync(originalBot)) {
+        fs.copyFileSync(originalBot, sessionBot);
+    }
+    
+    // Copy session files if they exist - prioritize existing session files
+    const originalSession = path.join(__dirname, 'linkedin_session.json');
+    const sessionSessionFile = path.join(sessionDir, 'linkedin_session.json');
+    
+    // Only copy session if it doesn't already exist in the session directory
+    if (fs.existsSync(originalSession) && !fs.existsSync(sessionSessionFile)) {
+        fs.copyFileSync(originalSession, sessionSessionFile);
+        console.log(`Copied LinkedIn session to: ${sessionSessionFile}`);
+    } else if (fs.existsSync(sessionSessionFile)) {
+        console.log(`Using existing LinkedIn session: ${sessionSessionFile}`);
+    }
+    
+    const originalUserData = path.join(__dirname, 'linkedin_user_data');
+    const sessionUserData = path.join(sessionDir, 'linkedin_user_data');
+    
+    // Only copy user data if it doesn't already exist in the session directory
+    if (fs.existsSync(originalUserData) && !fs.existsSync(sessionUserData)) {
+        // Copy entire user data directory
+        const copyDir = (src, dest) => {
+            if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+            const entries = fs.readdirSync(src, { withFileTypes: true });
+            for (let entry of entries) {
+                const srcPath = path.join(src, entry.name);
+                const destPath = path.join(dest, entry.name);
+                if (entry.isDirectory()) {
+                    copyDir(srcPath, destPath);
+                } else {
+                    fs.copyFileSync(srcPath, destPath);
+                }
+            }
+        };
+        copyDir(originalUserData, sessionUserData);
+        console.log(`Copied user data to: ${sessionUserData}`);
+    } else if (fs.existsSync(sessionUserData)) {
+        console.log(`Using existing user data: ${sessionUserData}`);
+    }
+    
+    // Check if bot is already running
+    const botKey = `linkedin_${uniqueId}`;
+    if (activeBots.has(botKey)) {
+        res.json({ success: false, message: 'LinkedIn bot is already running for this session' });
+        return;
+    }
+    
+    // Start LinkedIn bot process
+    console.log(`Starting LinkedIn bot for session: ${uniqueId}`);
+    console.log(`Session directory: ${sessionDir}`);
+    console.log(`Test mode: ${testMode}, Portfolio: ${portfolioLink}`);
+    
+    const botProcess = spawn('node', ['scraper_v2.js'], {
+        cwd: sessionDir,
+        env: { 
+            ...process.env, 
+            SESSION_ID: uniqueId,
+            SANITIZED_SESSION_ID: sanitizedId
+        },
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    // Log bot output
+    const logFile = path.join(sessionDir, 'bot.log');
+    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    
+    botProcess.stdout.on('data', (data) => {
+        logStream.write(data);
+        console.log(`LinkedIn Bot ${uniqueId}:`, data.toString().trim());
+    });
+    
+    botProcess.stderr.on('data', (data) => {
+        logStream.write(data);
+        console.error(`LinkedIn Bot ${uniqueId} Error:`, data.toString().trim());
+    });
+    
+    botProcess.on('close', (code) => {
+        console.log(`LinkedIn bot ${uniqueId} exited with code ${code}`);
+        activeBots.delete(botKey);
+        logStream.end();
+    });
+    
+    botProcess.on('error', (error) => {
+        console.error(`LinkedIn bot ${uniqueId} spawn error:`, error);
+        activeBots.delete(botKey);
+        logStream.end();
+    });
+    
+    activeBots.set(botKey, botProcess);
+    
+    res.json({ 
+        success: true, 
+        message: 'LinkedIn bot started successfully',
+        sessionDir: sanitizedId
+    });
+});
+
+// Start Lead Generation
+app.post('/start-leads', upload.none(), (req, res) => {
+    const { uniqueId, keywords, location, maxLeads } = req.body;
+    
+    console.log(`Lead generation start request for session: ${uniqueId}`);
+    console.log(`Request body:`, { uniqueId, keywords, location, maxLeads });
+    
+    if (!uniqueId) {
+        return res.status(400).json({ success: false, message: 'Session ID is required' });
+    }
+    
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const sessionDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+    
+    if (!fs.existsSync(sessionDir)) {
+        fs.mkdirSync(sessionDir, { recursive: true });
+    }
+    
+    // Write configuration files
+    fs.writeFileSync(path.join(sessionDir, 'keywords.txt'), keywords || 'software development, web development, mobile app');
+    fs.writeFileSync(path.join(sessionDir, 'location.txt'), location || 'San Francisco');
+    fs.writeFileSync(path.join(sessionDir, 'max_leads.txt'), maxLeads || '50');
+    fs.writeFileSync(path.join(sessionDir, 'original_session_id.txt'), uniqueId);
+    
+    // Check if LinkedIn session exists (needed for LinkedIn lead generation)
+    const linkedinSessionFile = path.join(__dirname, 'linkedin_session.json');
+    if (!fs.existsSync(linkedinSessionFile)) {
+        console.log('Warning: LinkedIn session not found. Lead generation will work but LinkedIn search may be limited.');
+    }
+    
+    // Copy lead generator to session directory
+    const originalLeadGen = path.join(__dirname, 'lead_generator.js');
+    const sessionLeadGen = path.join(sessionDir, 'lead_generator.js');
+    if (fs.existsSync(originalLeadGen)) {
+        fs.copyFileSync(originalLeadGen, sessionLeadGen);
+    }
+    
+    // Copy package.json if it exists for dependencies
+    const originalPackage = path.join(__dirname, 'package.json');
+    const sessionPackage = path.join(sessionDir, 'package.json');
+    if (fs.existsSync(originalPackage)) {
+        fs.copyFileSync(originalPackage, sessionPackage);
+    }
+    
+    // Check if lead generation is already running
+    const botKey = `leads_${uniqueId}`;
+    if (activeBots.has(botKey)) {
+        res.json({ success: false, message: 'Lead generation is already running for this session' });
+        return;
+    }
+    
+    // Start lead generation process
+    console.log(`Starting lead generation for session: ${uniqueId}`);
+    console.log(`Session directory: ${sessionDir}`);
+    console.log(`Keywords: ${keywords}, Location: ${location}, Max: ${maxLeads}`);
+    
+    const leadProcess = spawn('node', ['lead_generator.js', `--keywords=${keywords}`, `--location=${location}`, `--max=${maxLeads}`, '--out=leads_report.json'], {
+        cwd: sessionDir,
+        env: { 
+            ...process.env, 
+            SESSION_ID: uniqueId,
+            SANITIZED_SESSION_ID: sanitizedId
+        },
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    
+    // Log output
+    const logFile = path.join(sessionDir, 'bot.log');
+    const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+    
+    leadProcess.stdout.on('data', (data) => {
+        logStream.write(data);
+        console.log(`Lead Gen ${uniqueId}:`, data.toString().trim());
+    });
+    
+    leadProcess.stderr.on('data', (data) => {
+        logStream.write(data);
+        console.error(`Lead Gen ${uniqueId} Error:`, data.toString().trim());
+    });
+    
+    leadProcess.on('close', (code) => {
+        console.log(`Lead generation ${uniqueId} completed with code ${code}`);
+        activeBots.delete(botKey);
+        logStream.end();
+    });
+    
+    leadProcess.on('error', (error) => {
+        console.error(`Lead generation ${uniqueId} spawn error:`, error);
+        activeBots.delete(botKey);
+        logStream.end();
+    });
+    
+    activeBots.set(botKey, leadProcess);
+    
+    res.json({ 
+        success: true, 
+        message: 'Lead generation started successfully',
+        sessionDir: sanitizedId
+    });
+});
+
+// Download leads report
+app.get('/download-leads/:uniqueId', (req, res) => {
+    const { uniqueId } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const sessionDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+    const reportFile = path.join(sessionDir, 'leads_report.json');
+    
+    if (fs.existsSync(reportFile)) {
+        res.download(reportFile, `leads_report_${uniqueId}_${new Date().toISOString().split('T')[0]}.json`);
+    } else {
+        res.status(404).json({ success: false, message: 'No leads report found' });
+    }
+});
+
 // Stop bot
 app.post('/stop-bot', (req, res) => {
     const { uniqueId, botType } = req.body;
@@ -407,11 +772,68 @@ app.post('/stop-bot', (req, res) => {
         }
         
         activeBots.delete(botKey);
-        console.log(`${botType} bot ${uniqueId} stopped`);
-        res.json({ success: true, message: `${botType} bot stopped successfully` });
+        console.log(`${botType} automation ${uniqueId} stopped`);
+        res.json({ success: true, message: `${botType} automation stopped successfully` });
     } else {
         res.json({ success: false, message: 'Bot not found or already stopped' });
     }
+});
+
+// Get session status
+app.get('/session-status/:uniqueId', (req, res) => {
+    const { uniqueId } = req.params;
+    
+    if (!uniqueId) {
+        return res.status(400).json({ success: false, message: 'Session ID is required' });
+    }
+    
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const sessionDir = path.join(__dirname, 'sessions', sanitizedId);
+    
+    if (!fs.existsSync(sessionDir)) {
+        return res.json({ 
+            exists: false, 
+            message: 'Session directory not found' 
+        });
+    }
+    
+    // Check LinkedIn session files
+    const linkedinSessionFile = path.join(__dirname, 'linkedin_session.json');
+    const sessionLinkedinFile = path.join(sessionDir, 'linkedin', 'linkedin_session.json');
+    const hasLinkedInSession = fs.existsSync(linkedinSessionFile) || fs.existsSync(sessionLinkedinFile);
+    
+    // Check user data
+    const linkedinUserData = path.join(__dirname, 'linkedin_user_data');
+    const sessionUserData = path.join(sessionDir, 'linkedin', 'linkedin_user_data');
+    const hasUserData = fs.existsSync(linkedinUserData) || fs.existsSync(sessionUserData);
+    
+    // Check session age
+    let sessionAge = null;
+    if (hasLinkedInSession) {
+        try {
+            const sessionFile = fs.existsSync(linkedinSessionFile) ? linkedinSessionFile : sessionLinkedinFile;
+            const stats = fs.statSync(sessionFile);
+            sessionAge = new Date(stats.mtime).toLocaleString();
+        } catch (err) {
+            console.log('Error getting session age:', err.message);
+        }
+    }
+    
+    // Check running processes
+    const processes = {
+        sessionCreator: sessionCreators.has(`creator_${uniqueId}`),
+        linkedinBot: activeBots.has(`linkedin_${uniqueId}`),
+        leadGeneration: activeBots.has(`leads_${uniqueId}`)
+    };
+    
+    res.json({
+        exists: true,
+        sessionDir: sanitizedId,
+        hasLinkedInSession,
+        hasUserData,
+        sessionAge,
+        processes
+    });
 });
 
 // Get bot status

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>WOAT - Bot Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    <title>Sales Agent Control Panel</title>
     <style>
         * {
             margin: 0;
@@ -136,7 +136,7 @@
 
         .secure-badge {
             display: inline-block;
-            background: linear-gradient(135deg, #238636 0%, #2ea043 100%);
+            background: linear-gradient(135deg, #1f6feb 0%, #388bfd 100%);
             color: white;
             padding: 2px 8px;
             border-radius: 12px;
@@ -151,7 +151,7 @@
         
         .bot-selection {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr 1fr;
             gap: 24px;
             margin-bottom: 32px;
         }
@@ -294,7 +294,7 @@
         }
         
         .btn {
-            background: #238636;
+            background: #1f6feb;
             color: #ffffff;
             border: 1px solid rgba(240, 246, 252, 0.1);
             padding: 8px 16px;
@@ -308,7 +308,7 @@
         }
         
         .btn:hover {
-            background: #2ea043;
+            background: #388bfd;
         }
         
         .btn-danger {
@@ -414,8 +414,8 @@
 <body>
     <div class="container">        <div class="header">
             <button class="remove-session-btn" id="removeSessionBtn" onclick="removeSession()">Remove Session</button>
-            <h1>WOAT Bot Control Panel</h1>
-            <p>Manage your WhatsApp and Instagram bots from one place</p>
+            <h1>Sales Agent Control Panel</h1>
+            <p>Manage your lead generation, WhatsApp automation, and LinkedIn outreach from one place</p>
             <!-- <div class="source-info">
                 Source code: <a href="https://github.com/nithin434/woat.git" target="_blank">github.com/nithin434/woat</a>
             </div>
@@ -693,16 +693,52 @@
             document.getElementById('removeSessionBtn').classList.add('show');
             
             document.getElementById('mainContent').innerHTML = `
+                <!-- Session Management -->
+                <div class="info-box" style="margin-bottom: 24px;">
+                    <h4>Session Management</h4>
+                    <p>Before using LinkedIn Bot or Lead Generation, you need to create a LinkedIn session.</p>
+                    <button class="btn btn-primary" onclick="createLinkedInSession()">🔐 Create LinkedIn Session</button>
+                    <button class="btn" onclick="checkSessionStatus()">📊 Check Session Status</button>
+                    <div id="sessionStatus" style="margin-top: 12px; font-size: 14px;"></div>
+                </div>
+                
                 <!-- Bot Selection -->
                 <div class="bot-selection">
+                    <div class="bot-card" onclick="selectBot('leads')">
+                        <h3>Lead Generation</h3>
+                        <p>Intelligent lead discovery and management system for finding potential clients</p>
+                    </div>
                     <div class="bot-card" onclick="selectBot('whatsapp')">
                         <h3>WhatsApp Bot</h3>
                         <p>Automated responses for WhatsApp messages using AI-powered conversations</p>
                     </div>
-                    <div class="bot-card" onclick="selectBot('instagram')">
-                        <h3>Instagram Bot</h3>
-                        <p>Monitor and respond to Instagram Direct Messages automatically</p>
+                    <div class="bot-card" onclick="selectBot('linkedin')">
+                        <h3>LinkedIn Bot</h3>
+                        <p>Monitor and respond to LinkedIn messages with professional AI assistance</p>
                     </div>
+                </div>
+
+                <!-- Lead Generation Controls -->
+                <div class="bot-controls" id="leadsControls">
+                    <h3>Lead Generation Configuration</h3>
+                    <div class="form-group">
+                        <label for="leadKeywords">Search Keywords:</label>
+                        <textarea id="leadKeywords" rows="3" placeholder="software development, web development, mobile app">software development, web development, mobile app</textarea>
+                        <small>Keywords to search for when finding potential clients (comma separated)</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="leadLocation">Target Location:</label>
+                        <input type="text" id="leadLocation" value="San Francisco" placeholder="e.g., San Francisco, New York">
+                        <small>Geographic location to focus lead search</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="maxLeads">Maximum Leads:</label>
+                        <input type="number" id="maxLeads" value="50" min="10" max="200">
+                        <small>Maximum number of leads to generate (10-200)</small>
+                    </div>
+                    <button class="btn" onclick="startLeadGeneration()">Start Lead Generation</button>
+                    <button class="btn btn-danger" onclick="stopBot('leads')">Stop Generation</button>
+                    <button class="btn btn-primary" onclick="downloadLeads()">Download Report</button>
                 </div>
 
                 <!-- WhatsApp Bot Controls -->
@@ -726,37 +762,26 @@
                     <button class="btn btn-danger" onclick="stopBot('whatsapp')">Stop Bot</button>
                 </div>
 
-                <!-- Instagram Bot Controls -->
-                <div class="bot-controls" id="instagramControls">
-                    <h3>Instagram Bot Configuration</h3>
+                <!-- LinkedIn Bot Controls -->
+                <div class="bot-controls" id="linkedinControls">
+                    <h3>LinkedIn Bot Configuration</h3>
                     <div class="form-group">
-                        <label for="instagramPersonality">Bot Personality:</label>
-                        <textarea id="instagramPersonality" rows="4" placeholder="Describe how the bot should respond...">You are Nithin responding to Instagram DMs. Be casual, friendly, and authentic. Keep responses under 40 words and use normal punctuation only.</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="cookiesFile">Instagram Cookies File (JSON format):</label>
-                        <input type="file" id="cookiesFile" accept=".json">
-                        <small>Use browser extension to export cookies: <a href="https://chromewebstore.google.com/detail/okpidcojinmlaakglciglbpcpajaibco?utm_source=item-share-cb" target="_blank">Export cookies to JSON</a></small>
-                    </div>
-                    <div class="info-box">
-                        <h4>Instagram Bot Setup Guide</h4>
-                        <p><strong>Step 1:</strong> Install the Chrome extension and export Instagram cookies to JSON</p>
-                        <p><strong>Step 2:</strong> Get conversation IDs from Instagram Direct URLs:</p>
-                        <ul>
-                            <li>Open Instagram in browser and go to Direct Messages</li>
-                            <li>Click on a conversation, copy the URL</li>
-                            <li>URL format: <code>instagram.com/direct/t/CONVERSATION_ID/</code></li>
-                            <li>Extract the <code>CONVERSATION_ID</code> part (long number)</li>
-                        </ul>
-                        <p><strong>Example:</strong> <code>17844616119022755</code></p>
+                        <label for="linkedinPersonality">Bot Personality:</label>
+                        <textarea id="linkedinPersonality" rows="4" placeholder="Describe how the bot should respond...">You are Nithin responding to LinkedIn messages. Be professional yet friendly, and authentic. Keep responses casual and under 30 words.</textarea>
                     </div>
                     <div class="form-group">
-                        <label for="instagramUsers">Conversation IDs to Monitor (one per line):</label>
-                        <textarea id="instagramUsers" rows="4" placeholder="17844616119022755&#10;29877545839276&#10;18234567890123&#10;...">17844616119022755</textarea>
-                        <small>Tip: Each line should contain one conversation ID (numbers only)</small>
+                        <label for="portfolioLink">Portfolio Link:</label>
+                        <input type="url" id="portfolioLink" value="https://your-portfolio-link.com" placeholder="https://your-portfolio.com">
+                        <small>Link to your portfolio for email sharing</small>
                     </div>
-                    <button class="btn" onclick="startInstagramBot()">Start Instagram Bot</button>
-                    <button class="btn btn-danger" onclick="stopBot('instagram')">Stop Bot</button>
+                    
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="testMode" checked>
+                        <label for="testMode">Test Mode (messages won't actually be sent)</label>
+                    </div>
+                    
+                    <button class="btn" onclick="startLinkedInBot()">Start LinkedIn Bot</button>
+                    <button class="btn btn-danger" onclick="stopBot('linkedin')">Stop Bot</button>
                 </div>
 
                 <!-- Status Section -->
@@ -799,6 +824,191 @@
             // Show selected bot controls
             document.getElementById(botType + 'Controls').style.display = 'block';
             selectedBot = botType;
+        }
+
+        // Create LinkedIn Session
+        async function createLinkedInSession() {
+            if (!currentUniqueId) {
+                alert('Please log in first');
+                return;
+            }
+            
+            updateStatus('Creating LinkedIn session...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/create-session`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        uniqueId: currentUniqueId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateStatus(`✅ ${result.message}`, 'success');
+                    document.getElementById('sessionStatus').innerHTML = `
+                        <div style="color: #3fb950;">
+                            <strong>Session Creator Started!</strong><br>
+                            📖 ${result.instructions}<br>
+                            📁 Session Directory: ${result.sessionDir}<br>
+                            📄 Log File: ${result.logFile}
+                        </div>
+                    `;
+                } else {
+                    updateStatus(`❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error creating session:', error);
+                updateStatus('❌ Error creating session', 'error');
+            }
+        }
+        
+        // Check Session Status
+        async function checkSessionStatus() {
+            if (!currentUniqueId) {
+                alert('Please log in first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/session-status/${currentUniqueId}`);
+                const result = await response.json();
+                
+                if (result.exists) {
+                    const statusHtml = `
+                        <div style="color: #e6edf3;">
+                            <strong>Session Status:</strong><br>
+                            📁 Directory: ${result.sessionDir}<br>
+                            🔑 LinkedIn Session: ${result.hasLinkedInSession ? '✅ Available' : '❌ Missing'}<br>
+                            📂 User Data: ${result.hasUserData ? '✅ Available' : '❌ Missing'}<br>
+                            ${result.sessionAge ? `⏰ Last Updated: ${result.sessionAge}` : ''}<br>
+                            <strong>Running Processes:</strong><br>
+                            📊 Session Creator: ${result.processes.sessionCreator ? '🟢 Running' : '⚪ Stopped'}<br>
+                            💼 LinkedIn Bot: ${result.processes.linkedinBot ? '🟢 Running' : '⚪ Stopped'}<br>
+                            🎯 Lead Generation: ${result.processes.leadGeneration ? '🟢 Running' : '⚪ Stopped'}
+                        </div>
+                    `;
+                    document.getElementById('sessionStatus').innerHTML = statusHtml;
+                } else {
+                    document.getElementById('sessionStatus').innerHTML = `
+                        <div style="color: #f85149;">
+                            <strong>No session found.</strong> Please create a LinkedIn session first.
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error checking session status:', error);
+                document.getElementById('sessionStatus').innerHTML = `
+                    <div style="color: #f85149;">
+                        Error checking session status.
+                    </div>
+                `;
+            }
+        }
+
+        // Start Lead Generation
+        async function startLeadGeneration() {
+            const keywords = document.getElementById('leadKeywords').value;
+            const location = document.getElementById('leadLocation').value;
+            const maxLeads = document.getElementById('maxLeads').value;
+
+            const formData = new FormData();
+            formData.append('uniqueId', currentUniqueId);
+            formData.append('keywords', keywords);
+            formData.append('location', location);
+            formData.append('maxLeads', maxLeads);
+
+            try {
+                updateStatus('Starting lead generation...', 'info');
+                
+                const response = await fetch(`${API_BASE}/start-leads`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus('Lead generation started successfully! Check logs below.', 'success');
+                    startAutoRefresh();
+                } else {
+                    updateStatus(`Error starting lead generation: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error starting lead generation:', error);
+                updateStatus('Error connecting to server', 'error');
+            }
+        }
+
+        // Download Leads Report
+        async function downloadLeads() {
+            try {
+                const response = await fetch(`${API_BASE}/download-leads/${currentUniqueId}`);
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `leads_report_${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                    updateStatus('Leads report downloaded successfully', 'success');
+                } else {
+                    updateStatus('No leads report available yet', 'error');
+                }
+            } catch (error) {
+                console.error('Error downloading leads:', error);
+                updateStatus('Error downloading leads report', 'error');
+            }
+        }
+
+        // Start LinkedIn Bot
+        async function startLinkedInBot() {
+            const personality = document.getElementById('linkedinPersonality').value;
+            const portfolioLink = document.getElementById('portfolioLink').value;
+            const testMode = document.getElementById('testMode').checked;
+
+            const formData = new FormData();
+            formData.append('uniqueId', currentUniqueId);
+            formData.append('personality', personality);
+            formData.append('portfolioLink', portfolioLink);
+            formData.append('testMode', testMode);
+
+            try {
+                updateStatus('Starting LinkedIn bot...', 'info');
+                
+                const response = await fetch(`${API_BASE}/start-linkedin`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus('LinkedIn bot started successfully! Check logs below.', 'success');
+                    startAutoRefresh();
+                } else {
+                    updateStatus(`Error starting LinkedIn bot: ${result.message}`, 'error');
+                    if (result.needsSession) {
+                        document.getElementById('sessionStatus').innerHTML = `
+                            <div style="color: #f85149;">
+                                <strong>LinkedIn session required!</strong><br>
+                                Please click "🔐 Create LinkedIn Session" first.
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error starting LinkedIn bot:', error);
+                updateStatus('Error connecting to server', 'error');
+            }
         }
 
         // Start WhatsApp Bot

@@ -4,19 +4,69 @@ const fs = require('fs').promises;
 const fsSynch = require('fs');
 const path = require('path');
 
+// Session management
+const sessionId = process.env.SESSION_ID || 'default';
+const sanitizedSessionId = process.env.SANITIZED_SESSION_ID || sessionId;
+
+// Logger function
+function log(message, type = 'INFO') {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] [${type}] ${message}`;
+    console.log(logMessage);
+}
+
+// Load session configuration
+function loadSessionConfig() {
+    const config = {
+        keywords: ['software development', 'web development', 'mobile app'],
+        location: 'San Francisco',
+        maxLeads: 50,
+        outputFile: 'leads_report.json'
+    };
+    
+    try {
+        // Load configuration from files
+        const keywordsFile = path.join(__dirname, 'keywords.txt');
+        if (fsSynch.existsSync(keywordsFile)) {
+            const keywordsText = fsSynch.readFileSync(keywordsFile, 'utf8').trim();
+            config.keywords = keywordsText.split(',').map(k => k.trim()).filter(k => k);
+        }
+        
+        const locationFile = path.join(__dirname, 'location.txt');
+        if (fsSynch.existsSync(locationFile)) {
+            config.location = fsSynch.readFileSync(locationFile, 'utf8').trim();
+        }
+        
+        const maxLeadsFile = path.join(__dirname, 'max_leads.txt');
+        if (fsSynch.existsSync(maxLeadsFile)) {
+            config.maxLeads = parseInt(fsSynch.readFileSync(maxLeadsFile, 'utf8').trim()) || 50;
+        }
+        
+        log(`Session config loaded: Keywords: ${config.keywords.join(', ')}, Location: ${config.location}, Max: ${config.maxLeads}`);
+        return config;
+    } catch (err) {
+        log(`Config loading error: ${err.message}`, 'WARNING');
+        return config;
+    }
+}
+
 class LeadGenerator {
   constructor(options = {}) {
     this.browser = null;
-    this.headless = options.headless !== undefined ? options.headless : false; // Changed to false for visibility
+    this.headless = options.headless !== undefined ? options.headless : false;
     this.apiKey = options.apiKey || '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';
     this.sessionFilePath = options.sessionFilePath || path.join(__dirname, 'linkedin_session.json');
     this.userDataDir = options.userDataDir || path.join(__dirname, 'linkedin_user_data');
+    this.sessionId = sessionId;
+    this.sanitizedSessionId = sanitizedSessionId;
+    
+    log(`Lead Generator initialized for session: ${this.sessionId}`);
   }
 
   async loadLinkedInSession() {
     try {
       if (!fsSynch.existsSync(this.sessionFilePath)) {
-        console.log('📝 No saved LinkedIn session found. Run: node manual_session_creator.js');
+        log('No saved LinkedIn session found');
         return null;
       }
 
@@ -25,14 +75,14 @@ class LeadGenerator {
       // Check if session is not too old (7 days)
       const sessionAge = Date.now() - sessionData.timestamp;
       if (sessionAge > 7 * 24 * 60 * 60 * 1000) {
-        console.log('⏰ Saved session is too old (>7 days). Run: node manual_session_creator.js');
+        log('Saved session is too old (>7 days)', 'WARNING');
         return null;
       }
 
-      console.log(`✅ Loaded LinkedIn session with ${sessionData.cookies ? sessionData.cookies.length : 0} cookies`);
+      log(`Loaded LinkedIn session with ${sessionData.cookies ? sessionData.cookies.length : 0} cookies`);
       return sessionData;
     } catch (error) {
-      console.error('❌ Error loading session:', error.message);
+      log(`Error loading session: ${error.message}`, 'ERROR');
       return null;
     }
   }
@@ -48,7 +98,7 @@ class LeadGenerator {
       userDataDir: this.userDataDir
     };
 
-    console.log('🔐 Launching with LinkedIn session support...');
+    log('Launching browser with LinkedIn session support...');
     this.browser = await puppeteer.launch(launchOptions);
 
     // Load and apply LinkedIn cookies if available
@@ -59,7 +109,7 @@ class LeadGenerator {
       
       // Set cookies
       await page.setCookie(...sessionData.cookies);
-      console.log('🍪 LinkedIn cookies loaded successfully!');
+      log('LinkedIn cookies loaded successfully!');
     }
   }
 
@@ -360,7 +410,7 @@ class LeadGenerator {
       return leads;
       
     } catch (err) {
-      console.error('Twitter search error:', err.message);
+      log(`LinkedIn search error: ${err.message}`, 'ERROR');
       await page.close();
       return [];
     }
@@ -800,16 +850,20 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
   }
 
   async generateFullLeadReport(options = {}) {
+    // Load session configuration
+    const sessionConfig = loadSessionConfig();
+    
     const {
-      keywords = ['software development', 'web development', 'app development'],
-      location = '',
-      maxLeads = 50,
+      keywords = sessionConfig.keywords,
+      location = sessionConfig.location,
+      maxLeads = sessionConfig.maxLeads,
       includeApproachStrategy = true
     } = options;
 
-    console.log('🚀 Starting Lead Generation...');
-    console.log(`📍 Location: ${location || 'Global'}`);
-    console.log(`🔑 Keywords: ${keywords.join(', ')}\n`);
+    log(`Starting Lead Generation for session: ${this.sessionId}`);
+    log(`Location: ${location || 'Global'}`);
+    log(`Keywords: ${keywords.join(', ')}`);
+    log(`Max leads: ${maxLeads}`);
 
     const allLeads = [];
 
@@ -879,6 +933,8 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
     }
 
     const report = {
+      sessionId: this.sessionId,
+      sanitizedSessionId: this.sanitizedSessionId,
       generatedAt: new Date().toISOString(),
       searchParams: {
         keywords,
@@ -891,8 +947,17 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
         mediumPriorityLeads: uniqueLeads.filter(l => l.score >= 40 && l.score < 70).length,
         lowPriorityLeads: uniqueLeads.filter(l => l.score < 40).length
       },
-      leads: uniqueLeads
+      leads: uniqueLeads.map(lead => ({
+        ...lead,
+        foundAt: new Date().toISOString(),
+        sessionId: this.sessionId
+      }))
     };
+    
+    log(`Lead generation completed for session ${this.sessionId}`, 'SUCCESS');
+    log(`High priority leads: ${report.summary.highPriorityLeads}`, 'SUCCESS');
+    log(`Medium priority leads: ${report.summary.mediumPriorityLeads}`, 'SUCCESS');
+    log(`Low priority leads: ${report.summary.lowPriorityLeads}`, 'SUCCESS');
 
     return report;
   }
@@ -905,15 +970,22 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
 }
 
 // Main execution
-async function main() {
+async function runLeadGeneration() {
+  log(`Starting Lead Generation Bot for session: ${sessionId}`);
+  log(`Sanitized session ID: ${sanitizedSessionId}`);
+  
+  // Load session configuration
+  const sessionConfig = loadSessionConfig();
+  
   const args = process.argv.slice(2);
   
-  let keywords = ['software development', 'web development', 'mobile app'];
-  let location = 'San Francisco';
-  let maxLeads = 50;
-  let outputFile = 'leads_report.json';
-  let headless = false; // Changed default to false for visibility
+  let keywords = sessionConfig.keywords;
+  let location = sessionConfig.location;
+  let maxLeads = sessionConfig.maxLeads;
+  let outputFile = sessionConfig.outputFile;
+  let headless = false;
   
+  // Override with command line arguments if provided
   for (const arg of args) {
     if (arg.startsWith('--keywords=')) {
       keywords = arg.split('=')[1].split(',').map(k => k.trim());
@@ -924,7 +996,7 @@ async function main() {
     } else if (arg.startsWith('--out=')) {
       outputFile = arg.split('=')[1];
     } else if (arg === '--headless') {
-      headless = 'new';
+      headless = true;
     }
   }
 
@@ -932,7 +1004,7 @@ async function main() {
   
   try {
     await generator.init();
-    console.log('🎯 Lead Generation System Initialized\n');
+    log('Lead Generation System Initialized', 'SUCCESS');
 
     const report = await generator.generateFullLeadReport({
       keywords,
@@ -941,47 +1013,48 @@ async function main() {
       includeApproachStrategy: true
     });
 
-    // Save report
+    // Save report with timestamp
+    const timestampedFile = `leads_report_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
     await fs.writeFile(outputFile, JSON.stringify(report, null, 2));
+    await fs.writeFile(timestampedFile, JSON.stringify(report, null, 2));
     
-    console.log('\n' + '='.repeat(60));
-    console.log('📊 LEAD GENERATION REPORT');
-    console.log('='.repeat(60));
-    console.log(`Total Leads Found: ${report.summary.totalLeads}`);
-    console.log(`High Priority (70+): ${report.summary.highPriorityLeads}`);
-    console.log(`Medium Priority (40-69): ${report.summary.mediumPriorityLeads}`);
-    console.log(`Low Priority (<40): ${report.summary.lowPriorityLeads}`);
+    log('========================================');
+    log('LEAD GENERATION REPORT');
+    log('========================================');
+    log(`Session ID: ${sessionId}`);
+    log(`Total Leads Found: ${report.summary.totalLeads}`);
+    log(`High Priority (70+): ${report.summary.highPriorityLeads}`);
+    log(`Medium Priority (40-69): ${report.summary.mediumPriorityLeads}`);
+    log(`Low Priority (<40): ${report.summary.lowPriorityLeads}`);
     
     if (report.leads.length > 0) {
-      console.log('\nTop 5 Leads:');
-      
-      report.leads.slice(0, 5).forEach((lead, idx) => {
-        console.log(`\n${idx + 1}. ${lead.name || lead.title || 'Lead'} (Score: ${lead.score})`);
-        console.log(`   ${lead.title || ''}`);
-        if (lead.company) console.log(`   Company: ${lead.company}`);
-        if (lead.location) console.log(`   Location: ${lead.location}`);
-        console.log(`   ${lead.profileUrl || lead.url || 'No URL'}`);
-        if (lead.approachStrategy) {
-          console.log(`\n   📋 Approach Strategy:`);
-          console.log(`   ${lead.approachStrategy.split('\n').join('\n   ')}`);
-        }
+      log('TOP 5 LEADS:');
+      report.leads.slice(0, 5).forEach((lead, i) => {
+        log(`${i + 1}. ${lead.name || lead.username || 'Unknown'} (Score: ${lead.score})`);
+        log(`   ${lead.title || ''} at ${lead.company || 'Unknown Company'}`);
+        log(`   Platform: ${lead.platform} | ${lead.url || lead.profileUrl || ''}`);
+        if (lead.email) log(`   Email: ${lead.email}`);
+        if (lead.phone) log(`   Phone: ${lead.phone}`);
       });
     }
     
-    console.log(`\n✅ Full report saved to: ${outputFile}`);
-    console.log('='.repeat(60) + '\n');
-
     await generator.close();
     
   } catch (err) {
-    console.error('Error:', err);
+    log(`Lead generation error: ${err.message}`, 'ERROR');
+    log(`Stack trace: ${err.stack}`, 'ERROR');
     await generator.close();
     process.exit(1);
   }
 }
 
+// Legacy main function for compatibility
+async function main() {
+  await runLeadGeneration();
+}
+
 module.exports = LeadGenerator;
 
 if (require.main === module) {
-  main();
+  runLeadGeneration();
 }

@@ -4,18 +4,66 @@ const fs = require('fs');
 const path = require('path');
 const nodemailer = require('nodemailer');
 
+// Session management
+const sessionId = process.env.SESSION_ID || 'default';
+const sanitizedSessionId = process.env.SANITIZED_SESSION_ID || sessionId;
+
+// Logger function
+function log(message, type = 'INFO') {
+    const timestamp = new Date().toISOString();
+    const logMessage = `[${timestamp}] [${type}] ${message}`;
+    console.log(logMessage);
+}
+
+// Load session configuration
+function loadSessionConfig() {
+    const config = {
+        apiKey: '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',
+        email: {
+            from: 'nithinjambula89@gmail.com',
+            password: 'qyum bzzh dmxn yivo',
+            smtp: 'smtp.gmail.com',
+            port: 587
+        },
+        portfolioLink: 'https://your-portfolio-link.com',
+        testMode: false
+    };
+    
+    try {
+        // Load configuration from files
+        const personalityFile = path.join(__dirname, 'personality.txt');
+        if (fs.existsSync(personalityFile)) {
+            config.personality = fs.readFileSync(personalityFile, 'utf8').trim();
+        }
+        
+        const portfolioFile = path.join(__dirname, 'portfolio_link.txt');
+        if (fs.existsSync(portfolioFile)) {
+            config.portfolioLink = fs.readFileSync(portfolioFile, 'utf8').trim();
+        }
+        
+        const testModeFile = path.join(__dirname, 'test_mode.txt');
+        if (fs.existsSync(testModeFile)) {
+            config.testMode = fs.readFileSync(testModeFile, 'utf8').trim() === 'true';
+        }
+        
+        const businessContextFile = path.join(__dirname, 'business_context.txt');
+        if (fs.existsSync(businessContextFile)) {
+            config.businessContext = fs.readFileSync(businessContextFile, 'utf8').trim();
+        }
+        
+        log(`Session ${sessionId} configuration loaded`);
+        log(`Test Mode: ${config.testMode}`);
+        log(`Portfolio: ${config.portfolioLink}`);
+        
+    } catch (error) {
+        log(`Error loading session config: ${error.message}`, 'ERROR');
+    }
+    
+    return config;
+}
+
 // Configuration
-const CONFIG = {
-    apiKey: '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',
-    email: {
-        from: 'nithinjambula89@gmail.com',
-        password: 'qyum bzzh dmxn yivo',
-        smtp: 'smtp.gmail.com',
-        port: 587
-    },
-    portfolioLink: 'https://your-portfolio-link.com', // Update this with your actual portfolio link
-    testMode: false // Set to false to actually send messages
-};
+const CONFIG = loadSessionConfig();
 
 // Email transporter
 const emailTransporter = nodemailer.createTransport({
@@ -75,7 +123,11 @@ function generateMeetingTimes() {
 
 // Generate AI response
 async function generateAIResponse(message, contactName, needsDoc, needsMeet) {
-    let prompt = `You are Nithin chatting casually on LinkedIn with ${contactName}. Write a short, friendly reply like you're texting a friend - keep it natural, conversational, and under 30 words. No formal business language. Be helpful but casual.`;
+    let prompt = CONFIG.personality || `You are Nithin chatting casually on LinkedIn with ${contactName}. Write a short, friendly reply like you're texting a friend - keep it natural, conversational, and under 30 words. No formal business language. Be helpful but casual.`;
+    
+    if (CONFIG.businessContext) {
+        prompt += `\n\nBusiness Context:\n${CONFIG.businessContext}`;
+    }
     
     if (needsDoc) {
         prompt += "\n\nThey want to see your work/portfolio. Tell them you'll email it over, and if they haven't shared their email, casually ask for it.";
@@ -85,7 +137,7 @@ async function generateAIResponse(message, contactName, needsDoc, needsMeet) {
     }
     
     try {
-        console.log(`   🤖 Calling AI...`);
+        log(`Calling AI for response to ${contactName}...`);
         
         const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
@@ -108,44 +160,41 @@ async function generateAIResponse(message, contactName, needsDoc, needsMeet) {
         
         if (!response.ok) {
             const errorText = await response.text();
-            console.error(`   ❌ API error ${response.status}: ${errorText}`);
+            log(`AI API error ${response.status}: ${errorText}`, 'ERROR');
             return null;
         }
         
         const data = await response.json();
-        console.log(`   📊 API Response:`, JSON.stringify(data).substring(0, 300));
+        log(`AI Response received: ${JSON.stringify(data).substring(0, 200)}`);
         
         if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            console.error(`   ❌ Invalid API response structure`);
+            log(`Invalid AI response structure`, 'ERROR');
             return null;
         }
         
         let aiText = data.choices[0].message.content;
         
-        // Handle potential null or undefined
         if (!aiText) {
-            console.error(`   ❌ AI returned empty content`);
+            log(`AI returned empty content`, 'ERROR');
             return null;
         }
         
-        // Clean up the response (remove thinking tokens, extra whitespace, etc.)
+        // Clean up the response
         aiText = aiText.trim();
-        
-        // Remove common AI artifacts
         aiText = aiText.replace(/<think>[\s\S]*?<\/think>/gi, '');
         aiText = aiText.replace(/\[thinking\][\s\S]*?\[\/thinking\]/gi, '');
         aiText = aiText.trim();
         
         if (aiText.length === 0) {
-            console.error(`   ❌ AI content empty after cleanup`);
+            log(`AI content empty after cleanup`, 'ERROR');
             return null;
         }
         
-        console.log(`   ✅ AI generated ${aiText.length} chars`);
+        log(`AI generated response: ${aiText.length} chars`);
         return aiText;
         
     } catch (err) {
-        console.error(`   ❌ AI error: ${err.message}`);
+        log(`AI error: ${err.message}`, 'ERROR');
         return null;
     }
 }
@@ -166,8 +215,7 @@ function generateFallbackMessage(contactName, needsDoc, needsMeet) {
 // Send email
 async function sendEmail(toEmail, subject, htmlBody) {
     if (CONFIG.testMode) {
-        console.log(`   📧 [TEST] Would send email to: ${toEmail}`);
-        console.log(`   Subject: ${subject}`);
+        log(`[TEST] Would send email to: ${toEmail} - Subject: ${subject}`);
         return { success: true, test: true };
     }
     
@@ -178,10 +226,10 @@ async function sendEmail(toEmail, subject, htmlBody) {
             subject: subject,
             html: htmlBody
         });
-        console.log(`   ✅ Email sent: ${info.messageId}`);
+        log(`Email sent successfully: ${info.messageId}`, 'SUCCESS');
         return { success: true, messageId: info.messageId };
     } catch (err) {
-        console.error(`   ❌ Email error: ${err.message}`);
+        log(`Email error: ${err.message}`, 'ERROR');
         return { success: false, error: err.message };
     }
 }
@@ -190,41 +238,59 @@ async function findConversations(browser, page) {
     
     // Load session cookies
     try {
-        const sessionData = JSON.parse(fs.readFileSync(path.join(__dirname, 'linkedin_session.json'), 'utf8'));
-        if (sessionData.cookies && sessionData.cookies.length > 0) {
-            await page.setCookie(...sessionData.cookies);
-            console.log('✅ Cookies loaded');
+        // Try session directory first, then fallback to root directory
+        const sessionFilePaths = [
+            path.join(__dirname, 'linkedin_session.json'),
+            path.join(path.dirname(__dirname), 'linkedin_session.json')
+        ];
+        
+        let sessionLoaded = false;
+        for (const sessionFilePath of sessionFilePaths) {
+            if (fs.existsSync(sessionFilePath)) {
+                const sessionData = JSON.parse(fs.readFileSync(sessionFilePath, 'utf8'));
+                if (sessionData.cookies && sessionData.cookies.length > 0) {
+                    await page.setCookie(...sessionData.cookies);
+                    log(`LinkedIn cookies loaded successfully from: ${sessionFilePath}`);
+                    sessionLoaded = true;
+                    break;
+                }
+            }
+        }
+        
+        if (!sessionLoaded) {
+            log('No LinkedIn session file found in any location', 'WARNING');
+            log('Please create a LinkedIn session first using the session creator');
         }
     } catch (err) {
-        console.log('⚠️ Could not load cookies:', err.message);
+        log(`Could not load cookies: ${err.message}`, 'WARNING');
     }
     
     // Go to LinkedIn feed first to establish session
-    console.log('🔐 Establishing LinkedIn session...');
+    log('Establishing LinkedIn session...');
     try {
         await page.goto('https://www.linkedin.com/feed/', {
             waitUntil: 'domcontentloaded',
             timeout: 90000
         });
-        console.log('✅ Session established');
+        log('Session established successfully');
         await new Promise(r => setTimeout(r, 3000));
     } catch (err) {
-        console.log('⚠️ Feed navigation issue, continuing...');
+        log('Feed navigation issue, continuing...', 'WARNING');
     }
     
     // Now go to messaging
-    console.log('📱 Navigating to messaging...');
+    log('Navigating to messaging...');
     try {
         await page.goto('https://www.linkedin.com/messaging/', {
             waitUntil: 'domcontentloaded',
             timeout: 90000
         });
     } catch (err) {
-        console.error('❌ Failed to navigate to messaging:', err.message);
+        log(`Failed to navigate to messaging: ${err.message}`, 'ERROR');
         throw err;
     }
     
-    console.log('⏳ Waiting for page to load...');
+    log('Waiting for page to load...');
     await new Promise(r => setTimeout(r, 10000));
     
     // Scroll
@@ -291,7 +357,7 @@ async function findConversations(browser, page) {
         return results;
     });
     
-    console.log(`\n✅ Found ${conversations.length} conversations`);
+    log(`Found ${conversations.length} conversations`);
     return conversations;
 }
 
@@ -331,7 +397,7 @@ async function getConversationHistory(browser, conversationUrl) {
 // Send LinkedIn message
 async function sendLinkedInMessage(browser, conversationUrl, messageText) {
     if (CONFIG.testMode) {
-        console.log(`   🧪 [TEST] Would send: "${messageText.substring(0, 60)}..."`);
+        log(`[TEST] Would send: "${messageText.substring(0, 60)}..."`);
         return { success: true, test: true };
     }
     
@@ -354,19 +420,19 @@ async function sendLinkedInMessage(browser, conversationUrl, messageText) {
         
         for (const sel of inputSelectors) {
             try {
-                console.log(`   🔍 Trying selector: ${sel}`);
+                log(`Trying selector: ${sel}`);
                 await page.waitForSelector(sel, { timeout: 3000 });
                 const element = await page.$(sel);
                 if (element) {
                     await element.click();
                     await new Promise(r => setTimeout(r, 500));
                     await element.type(messageText, { delay: 30 });
-                    console.log(`   ✅ Message typed using: ${sel}`);
+                    log(`Message typed using: ${sel}`);
                     found = true;
                     break;
                 }
             } catch (e) {
-                console.log(`   ❌ Selector failed: ${sel}`);
+                log(`Selector failed: ${sel}`);
                 continue;
             }
         }
@@ -383,7 +449,7 @@ async function sendLinkedInMessage(browser, conversationUrl, messageText) {
                     }
                     return false;
                 }, messageText);
-                console.log(`   ✅ Message typed using fallback method`);
+                log(`Message typed using fallback method`);
                 found = true;
             } catch (e) {
                 throw new Error('Message input not found');
@@ -405,7 +471,7 @@ async function sendLinkedInMessage(browser, conversationUrl, messageText) {
         for (const sel of sendSelectors) {
             sendBtn = await page.$(sel);
             if (sendBtn) {
-                console.log(`   📤 Found send button: ${sel}`);
+                log(`Found send button: ${sel}`);
                 break;
             }
         }
@@ -413,7 +479,7 @@ async function sendLinkedInMessage(browser, conversationUrl, messageText) {
         if (!sendBtn) throw new Error('Send button not found');
         
         await sendBtn.click();
-        console.log(`   ✅ Send button clicked`);
+        log(`Send button clicked`);
         await new Promise(r => setTimeout(r, 3000));
         await page.close();
         
@@ -429,102 +495,116 @@ async function runBot() {
     const sessionFilePath = path.join(__dirname, 'linkedin_session.json');
     const userDataDir = path.join(__dirname, 'linkedin_user_data');
     
-    console.log('🚀 Starting LinkedIn Auto-Reply Bot...');
-    console.log(`Mode: ${CONFIG.testMode ? '🧪 TEST' : '🔴 LIVE'}\n`);
+    log('='.repeat(50));
+    log(`Starting LinkedIn Auto-Reply Bot for session: ${sessionId}`);
+    log(`Mode: ${CONFIG.testMode ? 'TEST' : 'LIVE'}`);
+    log(`Portfolio: ${CONFIG.portfolioLink}`);
+    log(`Session file path: ${sessionFilePath}`);
+    log(`User data directory: ${userDataDir}`);
+    log('='.repeat(50));
+    
+    // Create user data directory if it doesn't exist
+    if (!fs.existsSync(userDataDir)) {
+        fs.mkdirSync(userDataDir, { recursive: true });
+        log(`Created user data directory: ${userDataDir}`);
+    }
     
     const browser = await puppeteer.launch({
         headless: false,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-features=VizDisplayCompositor'
+        ],
         userDataDir: userDataDir
     });
     
     const pages = await browser.pages();
     const page = pages[0] || await browser.newPage();
     
-    // Find conversations
-    const conversations = await findConversations(browser, page);
-    
-    if (conversations.length === 0) {
-        console.log('⚠️ No conversations found');
-        await browser.close();
-        return;
-    }
-    
-    console.log('\n📬 Processing conversations...\n');
-    
-    let processed = 0;
-    let replied = 0;
-    
-    for (const conv of conversations.slice(0, 5)) { // Process first 5
-        console.log(`\n📌 ${conv.name}`);
+    try {
+        // Find conversations
+        const conversations = await findConversations(browser, page);
         
-        try {
-            // Get conversation history
-            const history = await getConversationHistory(browser, conv.url);
+        if (conversations.length === 0) {
+            log('No conversations found', 'WARNING');
+            await browser.close();
+            return;
+        }
+        
+        log(`Processing ${conversations.length} conversations...`);
+        
+        let processed = 0;
+        let replied = 0;
+        
+        for (const conv of conversations.slice(0, 5)) { // Process first 5
+            log(`Processing conversation with ${conv.name}`);
             
-            if (!history || history.length === 0) {
-                console.log('   ⏭️ No messages');
-                continue;
-            }
-            
-            // Find last message from them
-            const lastFromThem = [...history].reverse().find(m => !m.fromMe);
-            if (!lastFromThem) {
-                console.log('   ⏭️ No messages from contact');
-                continue;
-            }
-            
-            // Check if already replied
-            const lastIndex = history.lastIndexOf(lastFromThem);
-            const alreadyReplied = history.slice(lastIndex + 1).some(m => m.fromMe);
-            
-            if (alreadyReplied) {
-                console.log('   ⏭️ Already replied');
-                continue;
-            }
-            
-            console.log(`   📨 "${lastFromThem.text.substring(0, 60)}..."`);
-            
-            processed++;
-            
-            // Check what they need
-            const wantsDoc = needsDocument(lastFromThem.text);
-            const wantsMeet = needsMeeting(lastFromThem.text);
-            const theirEmail = extractEmail(lastFromThem.text);
-            
-            console.log(`   📋 Document request: ${wantsDoc ? 'YES' : 'NO'}`);
-            console.log(`   📅 Meeting request: ${wantsMeet ? 'YES' : 'NO'}`);
-            console.log(`   📧 Email found: ${theirEmail || 'NO'}`);
-            
-            // Generate AI response
-            let aiReply = await generateAIResponse(lastFromThem.text, conv.name, wantsDoc, wantsMeet);
-            
-            // Fallback to generic message if AI fails
-            if (!aiReply) {
-                console.log('   ⚠️ AI failed - using fallback message');
-                aiReply = generateFallbackMessage(conv.name, wantsDoc, wantsMeet);
-            }
-            
-            console.log(`   💬 Reply: "${aiReply}"`);
-            
-            // Send LinkedIn reply
-            let linkedInSent = false;
             try {
-                await sendLinkedInMessage(browser, conv.url, aiReply);
-                console.log('   ✅ LinkedIn reply sent');
-                linkedInSent = true;
-                replied++;
-            } catch (err) {
-                console.log(`   ⚠️ LinkedIn reply failed: ${err.message}`);
-                console.log('   📧 Continuing with email sending...');
-            }
-            
-            await new Promise(r => setTimeout(r, 2000));
-            
-            // Send email if needed (independent of LinkedIn success)
-            if (wantsDoc) {
-                if (theirEmail) {
-                    console.log(`   📧 Sending portfolio to ${theirEmail}`);
+                // Get conversation history
+                const history = await getConversationHistory(browser, conv.url);
+                
+                if (!history || history.length === 0) {
+                    log(`No messages in conversation with ${conv.name}`);
+                    continue;
+                }
+                
+                // Find last message from them
+                const lastFromThem = [...history].reverse().find(m => !m.fromMe);
+                if (!lastFromThem) {
+                    log(`No messages from ${conv.name}`);
+                    continue;
+                }
+                
+                // Check if already replied
+                const lastIndex = history.lastIndexOf(lastFromThem);
+                const alreadyReplied = history.slice(lastIndex + 1).some(m => m.fromMe);
+                
+                if (alreadyReplied) {
+                    log(`Already replied to ${conv.name}`);
+                    continue;
+                }
+                
+                log(`New message from ${conv.name}: "${lastFromThem.text.substring(0, 60)}..."`);
+                
+                processed++;
+                
+                // Check what they need
+                const wantsDoc = needsDocument(lastFromThem.text);
+                const wantsMeet = needsMeeting(lastFromThem.text);
+                const theirEmail = extractEmail(lastFromThem.text);
+                
+                log(`Document request: ${wantsDoc}, Meeting request: ${wantsMeet}, Email found: ${theirEmail || 'none'}`);
+                
+                // Generate AI response
+                let aiReply = await generateAIResponse(lastFromThem.text, conv.name, wantsDoc, wantsMeet);
+                
+                // Fallback to generic message if AI fails
+                if (!aiReply) {
+                    log('AI failed - using fallback message', 'WARNING');
+                    aiReply = generateFallbackMessage(conv.name, wantsDoc, wantsMeet);
+                }
+                
+                log(`Generated reply: "${aiReply}"`);
+                
+                // Send LinkedIn reply
+                let linkedInSent = false;
+                try {
+                    await sendLinkedInMessage(browser, conv.url, aiReply);
+                    log(`LinkedIn reply sent to ${conv.name}`, 'SUCCESS');
+                    linkedInSent = true;
+                    replied++;
+                } catch (err) {
+                    log(`LinkedIn reply failed for ${conv.name}: ${err.message}`, 'ERROR');
+                    log('Continuing with email sending...');
+                }
+                
+                await new Promise(r => setTimeout(r, 2000));
+                
+                // Send email if needed (independent of LinkedIn success)
+                if (wantsDoc && theirEmail) {
+                    log(`Sending portfolio email to ${theirEmail}`);
                     
                     const emailBody = `
                         <html>
@@ -559,15 +639,11 @@ async function runBot() {
                     `;
                     
                     await sendEmail(theirEmail, `Portfolio & Information - ${conv.name}`, emailBody);
-                } else {
-                    console.log(`   ℹ️ Document requested but no email - asked in LinkedIn reply`);
                 }
-            }
-            
-            // Send meeting email if needed
-            if (wantsMeet) {
-                if (theirEmail) {
-                    console.log(`   📅 Sending meeting times to ${theirEmail}`);
+                
+                // Send meeting email if needed
+                if (wantsMeet && theirEmail) {
+                    log(`Sending meeting times to ${theirEmail}`);
                     
                     const meetingTimes = generateMeetingTimes();
                     const meetingBody = `
@@ -601,27 +677,30 @@ async function runBot() {
                     `;
                     
                     await sendEmail(theirEmail, `Meeting Request - ${conv.name}`, meetingBody);
-                } else {
-                    console.log(`   ℹ️ Meeting requested but no email - asked in LinkedIn reply`);
                 }
+                
+                await new Promise(r => setTimeout(r, 3000));
+                
+            } catch (err) {
+                log(`Error processing ${conv.name}: ${err.message}`, 'ERROR');
             }
-            
-            await new Promise(r => setTimeout(r, 3000));
-            
-        } catch (err) {
-            console.log(`   ❌ Error: ${err.message}`);
         }
+        
+        log('='.repeat(50));
+        log(`SUMMARY - Session: ${sessionId}`);
+        log(`Conversations found: ${conversations.length}`);
+        log(`Processed: ${processed}`);
+        log(`Replied: ${replied}`);
+        log('='.repeat(50));
+        
+    } catch (error) {
+        log(`Bot error: ${error.message}`, 'ERROR');
+    } finally {
+        log('Bot session ending in 10 seconds...');
+        await new Promise(r => setTimeout(r, 10000));
+        await browser.close();
+        log('LinkedIn bot session completed');
     }
-    
-    console.log('\n=== Summary ===');
-    console.log(`Conversations found: ${conversations.length}`);
-    console.log(`Processed: ${processed}`);
-    console.log(`Replied: ${replied}`);
-    
-    console.log('\n✋ Closing in 10 seconds...');
-    await new Promise(r => setTimeout(r, 10000));
-    
-    await browser.close();
 }
 
 runBot().catch(console.error);
