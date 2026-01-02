@@ -504,6 +504,8 @@ app.post('/start-linkedin', upload.none(), (req, res) => {
     fs.writeFileSync(path.join(sessionDir, 'test_mode.txt'), testMode ? 'true' : 'false');
     fs.writeFileSync(path.join(sessionDir, 'original_session_id.txt'), uniqueId);
     
+
+    
     // Check if LinkedIn session exists
     const linkedinSessionFile = path.join(__dirname, 'linkedin_session.json');
     if (!fs.existsSync(linkedinSessionFile)) {
