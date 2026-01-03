@@ -1069,6 +1069,7 @@
                 } else {
                     updateStatus(`Error starting lead generation: ${result.message}`, 'error');
                 }
+                
             } catch (error) {
                 console.error('Error starting lead generation:', error);
                 updateStatus('Error connecting to server', 'error');
