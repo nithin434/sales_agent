@@ -1,0 +1,21 @@
+{
+  "sessionId": "n",
+  "sanitizedSessionId": "n",
+  "generatedAt": "2026-01-02T05:23:27.875Z",
+  "searchParams": {
+    "keywords": [
+      "software development",
+      "web development",
+      "mobile app"
+    ],
+    "location": "San Francisco",
+    "maxLeads": 50
+  },
+  "summary": {
+    "totalLeads": 0,
+    "highPriorityLeads": 0,
+    "mediumPriorityLeads": 0,
+    "lowPriorityLeads": 0
+  },
+  "leads": []
+}

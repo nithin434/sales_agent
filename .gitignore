@@ -4,7 +4,6 @@ node_modules/
 # Session and user data
 linkedin_session.json
 linkedin_user_data/
-Sessions/
 # Logs
 *.log
 npm-debug.log*

@@ -1,0 +1,13 @@
+Services Offered:
+- Custom Software Development
+- Web & Mobile App Development  
+- AI/ML Integration & Automation
+- Cloud Solutions & DevOps
+- MVP Development for Startups
+- Full-stack Development Teams
+
+Technologies:
+React, Node.js, Python, AWS, Azure, MongoDB, PostgreSQL, Docker, Kubernetes
+
+Business Focus:
+Professional LinkedIn automation for lead generation and client communication. Specializing in software development services with AI-powered response generation.
