@@ -7,7 +7,9 @@ const { spawn } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-let port = 3000;
+// Use environment variables so production can bind to external interfaces/ports
+const HOST = process.env.HOST || '0.0.0.0';
+let port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Function to find available port
 function findAvailablePort(startPort) {
@@ -24,40 +26,25 @@ function findAvailablePort(startPort) {
 }
 
 app.use((req, res, next) => {
-    const allowedOrigins = [
-        'https://nithin434.github.io',
-        'https://nithin434.github.io/woat_launch/',
-        'https://thoroughly-judge-nomination-children.trycloudflare.com',
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:3001'
-    ];
-    
     const origin = req.headers.origin;
-    
-    // Allow the origin if it's in the allowed list or if there's no origin (direct access)
-    if (!origin || allowedOrigins.includes(origin)) {
-        res.header('Access-Control-Allow-Origin', origin || '*');
-    } else {
-        res.header('Access-Control-Allow-Origin', '*'); // Fallback to allow all
-    }
-    
+
+    // Production-friendly: allow any origin by default so external dashboards can connect
+    res.header('Access-Control-Allow-Origin', origin || '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
     res.header('Access-Control-Allow-Credentials', 'false');
     res.header('Access-Control-Max-Age', '86400');
-    
+
     // Log CORS requests for debugging
     console.log(`${req.method} ${req.url} - Origin: ${origin || 'none'}`);
-    
+
     // Handle preflight OPTIONS requests
     if (req.method === 'OPTIONS') {
         console.log('Handling OPTIONS preflight request from:', origin);
         res.status(200).end();
         return;
     }
-    
+
     next();
 });
 
@@ -1095,10 +1082,12 @@ app.post('/remove-session', (req, res) => {
 // Start server
 async function startServer() {
     try {
-        port = await findAvailablePort(3000);
-        app.listen(port, '0.0.0.0', () => {
+        // If PORT is provided, use it; otherwise find an open one starting at 3000
+        const portToUse = process.env.PORT ? port : await findAvailablePort(port || 3000);
+        port = portToUse;
+        app.listen(portToUse, HOST, () => {
             console.log(`🚀 WOAT Bot Control Server running on http://localhost:${port}`);
-            console.log(`🌐 Server accessible at http://0.0.0.0:${port}`);
+            console.log(`🌐 Server accessible at http://${HOST}:${port}`);
             console.log('📱 Access the interface in your web browser');
             console.log('🔧 CORS enabled for all origins');
             console.log('🔍 Health check available at: /health');
