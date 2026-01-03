@@ -365,6 +365,31 @@
             color: #7d8590;
         }
         
+        #dashboardContainer {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 12px;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        #dashboardContent h4 {
+            color: #f0f6fc;
+            margin-bottom: 12px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        #dashboardContent p {
+            margin: 4px 0;
+            font-size: 14px;
+        }
+        
+        #dashboardContent table {
+            margin-top: 12px;
+        }
+        
         .success {
             color: #3fb950;
             font-weight: 500;
@@ -545,8 +570,15 @@
                 </div>
                 <button class="btn" onclick="refreshLogs()">Refresh Logs</button>
                 <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                
+                <!-- Logs View -->
                 <div class="logs-container" id="logsContainer">
                     No logs available yet...
+                </div>
+                
+                <!-- Dashboard View (hidden by default) -->
+                <div id="dashboardContainer" style="display: none;">
+                    <div id="dashboardContent"></div>
                 </div>
             </div>
         </div>
@@ -697,9 +729,32 @@
                 <div class="info-box" style="margin-bottom: 24px;">
                     <h4>Session Management</h4>
                     <p>Before using LinkedIn Bot or Lead Generation, you need to create a LinkedIn session.</p>
-                    <button class="btn btn-primary" onclick="createLinkedInSession()">🔐 Create LinkedIn Session</button>
-                    <button class="btn" onclick="checkSessionStatus()">📊 Check Session Status</button>
+                    <button class="btn btn-primary" onclick="createLinkedInSession()">Create LinkedIn Session</button>
+                    <button class="btn" onclick="checkSessionStatus()">Check Session Status</button>
+                    
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #30363d;">
+                        <h4>Upload Session File</h4>
+                        <p style="font-size: 13px; margin-bottom: 8px;">Alternative: Upload session cookies from Chrome extension</p>
+                        <div style="font-size: 12px; color: #7d8590; margin-bottom: 12px;">
+                            <strong>Instructions:</strong><br>
+                            1. Install <a href="https://chromewebstore.google.com/detail/ookdjilphngeeeghgngjabigmpepanpl" target="_blank">EditThisCookie extension</a><br>
+                            2. Login to LinkedIn in Chrome<br>
+                            3. Click the extension icon and export as JSON<br>
+                            4. Upload the JSON file below
+                        </div>
+                        <input type="file" id="sessionFileInput" accept=".json" style="margin-bottom: 8px;">
+                        <button class="btn" onclick="uploadSessionFile()">Upload Session</button>
+                    </div>
+                    
                     <div id="sessionStatus" style="margin-top: 12px; font-size: 14px;"></div>
+                </div>
+
+                <!-- Leads Dashboard Access -->
+                <div class="info-box" style="margin-bottom: 24px;">
+                    <h4>Leads Dashboard</h4>
+                    <p>View and manage your generated leads with detailed insights and contact information.</p>
+                    <button class="btn btn-primary" onclick="openLeadsDashboard()">View Leads Dashboard</button>
+                    <button class="btn" onclick="downloadLeads()">Download Latest Report</button>
                 </div>
                 
                 <!-- Bot Selection -->
@@ -739,6 +794,12 @@
                     <button class="btn" onclick="startLeadGeneration()">Start Lead Generation</button>
                     <button class="btn btn-danger" onclick="stopBot('leads')">Stop Generation</button>
                     <button class="btn btn-primary" onclick="downloadLeads()">Download Report</button>
+                    
+                    <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #30363d;">
+                        <h4>View Mode</h4>
+                        <button class="btn" onclick="toggleLeadsView('logs')">View Logs</button>
+                        <button class="btn" onclick="toggleLeadsView('dashboard')">View Dashboard</button>
+                    </div>
                 </div>
 
                 <!-- WhatsApp Bot Controls -->
@@ -786,19 +847,30 @@
 
                 <!-- Status Section -->
                 <div class="status-section">
-                    <h3>Bot Status & Logs</h3>
+                    <h3 id="statusSectionTitle">Bot Status & Logs</h3>
                     <div class="status-display" id="statusDisplay">
                         Ready to start your bots...
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="logsControls">
                         <label>
                             <input type="checkbox" id="autoRefresh" checked> Auto-refresh logs every 3 seconds
                         </label>
                     </div>
-                    <button class="btn" onclick="refreshLogs()">Refresh Logs</button>
-                    <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                    <div id="viewToggleButtons" style="margin-bottom: 12px;">
+                        <button class="btn" onclick="showLogsView()">Show Logs</button>
+                        <button class="btn btn-primary" onclick="showDashboardView()">Show Dashboard</button>
+                    </div>
+                    <button class="btn" onclick="refreshLogs()" id="refreshLogsBtn">Refresh Logs</button>
+                    <button class="btn" onclick="clearLogs()" id="clearLogsBtn">Clear Logs</button>
+                    
+                    <!-- Logs View -->
                     <div class="logs-container" id="logsContainer">
                         No logs available yet...
+                    </div>
+                    
+                    <!-- Dashboard View (hidden by default) -->
+                    <div id="dashboardContainer" style="display: none;">
+                        <div id="dashboardContent"></div>
                     </div>
                 </div>
             `;
@@ -826,6 +898,65 @@
             selectedBot = botType;
         }
 
+        // Upload LinkedIn Session File
+        async function uploadSessionFile() {
+            if (!currentUniqueId) {
+                alert('Please log in first');
+                return;
+            }
+            
+            const fileInput = document.getElementById('sessionFileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Please select a session file first');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            // Validate file is JSON
+            if (!file.name.endsWith('.json')) {
+                alert('Please select a valid JSON file');
+                return;
+            }
+            
+            updateStatus('Uploading session file...', 'info');
+            
+            try {
+                const formData = new FormData();
+                formData.append('sessionFile', file);
+                formData.append('uniqueId', currentUniqueId);
+                
+                const response = await fetch(`${API_BASE}/upload-session`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateStatus(result.message, 'success');
+                    document.getElementById('sessionStatus').innerHTML = `
+                        <div style="color: #3fb950;">
+                            <strong>Session uploaded successfully!</strong><br>
+                            Cookies found: ${result.cookieCount}<br>
+                            You can now start LinkedIn Bot or Lead Generation
+                        </div>
+                    `;
+                    fileInput.value = ''; // Clear file input
+                } else {
+                    updateStatus(result.message, 'error');
+                    document.getElementById('sessionStatus').innerHTML = `
+                        <div style="color: #f85149;">
+                            <strong>Upload failed:</strong> ${result.message}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error uploading session:', error);
+                updateStatus('Error uploading session file', 'error');
+            }
+        }
+        
         // Create LinkedIn Session
         async function createLinkedInSession() {
             if (!currentUniqueId) {
@@ -941,6 +1072,158 @@
             } catch (error) {
                 console.error('Error starting lead generation:', error);
                 updateStatus('Error connecting to server', 'error');
+            }
+        }
+
+        // Toggle between logs and dashboard view
+        function toggleLeadsView(view) {
+            const logsContainer = document.getElementById('logsContainer');
+            const dashboardContainer = document.getElementById('dashboardContainer');
+
+            if (view === 'logs') {
+                logsContainer.style.display = 'block';
+                dashboardContainer.style.display = 'none';
+            } else if (view === 'dashboard') {
+                logsContainer.style.display = 'none';
+                dashboardContainer.style.display = 'block';
+                loadLeadsDashboard();
+            }
+        }
+
+        // Open leads dashboard from top button
+        function openLeadsDashboard() {
+            showDashboardView();
+        }
+
+        // Show dashboard view
+        function showDashboardView() {
+            const logsContainer = document.getElementById('logsContainer');
+            const dashboardContainer = document.getElementById('dashboardContainer');
+            const titleElement = document.getElementById('statusSectionTitle');
+            const logsControls = document.getElementById('logsControls');
+            const refreshBtn = document.getElementById('refreshLogsBtn');
+            const clearBtn = document.getElementById('clearLogsBtn');
+
+            logsContainer.style.display = 'none';
+            dashboardContainer.style.display = 'block';
+            if (titleElement) titleElement.textContent = 'Leads Dashboard';
+            if (logsControls) logsControls.style.display = 'none';
+            if (refreshBtn) refreshBtn.style.display = 'none';
+            if (clearBtn) clearBtn.style.display = 'none';
+
+            loadLeadsDashboard();
+        }
+
+        // Show logs view
+        function showLogsView() {
+            const logsContainer = document.getElementById('logsContainer');
+            const dashboardContainer = document.getElementById('dashboardContainer');
+            const titleElement = document.getElementById('statusSectionTitle');
+            const logsControls = document.getElementById('logsControls');
+            const refreshBtn = document.getElementById('refreshLogsBtn');
+            const clearBtn = document.getElementById('clearLogsBtn');
+
+            logsContainer.style.display = 'block';
+            dashboardContainer.style.display = 'none';
+            if (titleElement) titleElement.textContent = 'Bot Status & Logs';
+            if (logsControls) logsControls.style.display = 'block';
+            if (refreshBtn) refreshBtn.style.display = 'inline-block';
+            if (clearBtn) clearBtn.style.display = 'inline-block';
+
+            if (selectedBot) {
+                refreshLogs();
+            }
+        }
+
+        // Load leads dashboard
+        async function loadLeadsDashboard() {
+            if (!currentUniqueId) {
+                document.getElementById('dashboardContent').innerHTML = '<p style="color: #f85149;">Please log in first</p>';
+                return;
+            }
+
+            const dashboardContent = document.getElementById('dashboardContent');
+            dashboardContent.innerHTML = '<p>Loading dashboard data...</p>';
+
+            try {
+                const response = await fetch(`${API_BASE}/get-leads/${currentUniqueId}`);
+                const result = await response.json();
+
+                if (!result.success || !result.report) {
+                    dashboardContent.innerHTML = '<p style="color: #f85149;">No leads data available. Run lead generation first.</p>';
+                    return;
+                }
+
+                const report = result.report;
+
+                if (!report.leads || report.leads.length === 0) {
+                    dashboardContent.innerHTML = '<p style="color: #7d8590;">No leads generated yet. Start lead generation to see results here.</p>';
+                    return;
+                }
+
+                const summary = report.summary || {};
+
+                let html = `
+                    <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; margin-bottom: 16px;">
+                        <h4>Report Summary</h4>
+                        <p><strong>Source File:</strong> ${result.fileName || 'latest report'}</p>
+                        <p><strong>Generated:</strong> ${result.generatedAt ? new Date(result.generatedAt).toLocaleString() : (report.generatedAt ? new Date(report.generatedAt).toLocaleString() : 'N/A')}</p>
+                        <p><strong>Search Keywords:</strong> ${Array.isArray(report.searchParams?.keywords) ? report.searchParams.keywords.join(', ') : (report.searchParams?.keywords || 'N/A')}</p>
+                        <p><strong>Location:</strong> ${report.searchParams?.location || 'N/A'}</p>
+                        <p><strong>Total Leads:</strong> ${summary.totalLeads || 0}</p>
+                        <p><strong>High Priority:</strong> ${summary.highPriorityLeads || summary.highPriority || 0}</p>
+                        <p><strong>Medium Priority:</strong> ${summary.mediumPriorityLeads || summary.mediumPriority || 0}</p>
+                        <p><strong>Low Priority:</strong> ${summary.lowPriorityLeads || summary.lowPriority || 0}</p>
+                        <button class="btn" style="margin-top: 8px;" onclick="downloadLeads()">Download Latest Report</button>
+                    </div>
+
+                    <div style="background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 16px; overflow-x: auto;">
+                        <h4>Leads Details</h4>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid #30363d;">
+                                    <th style="padding: 8px; text-align: left;">Name</th>
+                                    <th style="padding: 8px; text-align: left;">Title</th>
+                                    <th style="padding: 8px; text-align: left;">Company</th>
+                                    <th style="padding: 8px; text-align: left;">Location</th>
+                                    <th style="padding: 8px; text-align: left;">Score</th>
+                                    <th style="padding: 8px; text-align: left;">Platform</th>
+                                    <th style="padding: 8px; text-align: left;">Contact</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                report.leads.forEach(lead => {
+                    const scoreColor = lead.score >= 80 ? '#3fb950' : lead.score >= 50 ? '#f0883e' : '#7d8590';
+                    html += `
+                        <tr style="border-bottom: 1px solid #21262d;">
+                            <td style="padding: 8px;">${lead.name || 'N/A'}</td>
+                            <td style="padding: 8px;">${lead.title || 'N/A'}</td>
+                            <td style="padding: 8px;">${lead.company || 'N/A'}</td>
+                            <td style="padding: 8px;">${lead.location || 'N/A'}</td>
+                            <td style="padding: 8px; color: ${scoreColor}; font-weight: 500;">${lead.score || 0}</td>
+                            <td style="padding: 8px;">${lead.platform || 'N/A'}</td>
+                            <td style="padding: 8px; font-size: 11px;">
+                                ${lead.email ? `Email: ${lead.email}<br>` : ''}
+                                ${lead.phone ? `Phone: ${lead.phone}<br>` : ''}
+                                ${lead.url || lead.profileUrl ? `<a href="${lead.url || lead.profileUrl}" target="_blank" style="color: #58a6ff;">Profile</a>` : 'N/A'}
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                dashboardContent.innerHTML = html;
+
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                dashboardContent.innerHTML = '<p style="color: #f85149;">Error loading dashboard data</p>';
             }
         }
 

@@ -154,6 +154,78 @@ app.get('/cors-test', (req, res) => {
     });
 });
 
+// Upload LinkedIn session
+app.post('/upload-session', upload.single('sessionFile'), (req, res) => {
+    const { uniqueId } = req.body;
+    
+    console.log(`Session upload request for: ${uniqueId}`);
+    
+    if (!uniqueId) {
+        return res.status(400).json({ success: false, message: 'Session ID is required' });
+    }
+    
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'Session file is required' });
+    }
+    
+    try {
+        // Parse uploaded JSON file
+        const sessionData = JSON.parse(fs.readFileSync(req.file.path, 'utf8'));
+        
+        // Validate session structure
+        if (!sessionData.cookies || !Array.isArray(sessionData.cookies)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid session file format. Must contain cookies array.' 
+            });
+        }
+        
+        // Save to root directory for all bots to use
+        const rootSessionFile = path.join(__dirname, 'linkedin_session.json');
+        fs.writeFileSync(rootSessionFile, JSON.stringify(sessionData, null, 2));
+        
+                // Also save to session-specific directory
+                const sanitizedId = sanitizeSessionId(uniqueId);
+                const sessionLinkedinDir = path.join(__dirname, 'sessions', sanitizedId, 'linkedin');
+                const sessionLeadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+        
+                if (!fs.existsSync(sessionLinkedinDir)) {
+                    fs.mkdirSync(sessionLinkedinDir, { recursive: true });
+                }
+                if (!fs.existsSync(sessionLeadsDir)) {
+                    fs.mkdirSync(sessionLeadsDir, { recursive: true });
+                }
+        
+                const sessionFile = path.join(sessionLinkedinDir, 'linkedin_session.json');
+                const leadsSessionFile = path.join(sessionLeadsDir, 'linkedin_session.json');
+                fs.writeFileSync(sessionFile, JSON.stringify(sessionData, null, 2));
+                fs.writeFileSync(leadsSessionFile, JSON.stringify(sessionData, null, 2));
+        
+        // Clean up uploaded file
+        fs.unlinkSync(req.file.path);
+        
+        console.log(`LinkedIn session uploaded successfully with ${sessionData.cookies.length} cookies`);
+        
+        res.json({ 
+            success: true, 
+            message: `LinkedIn session uploaded successfully. Found ${sessionData.cookies.length} cookies.`,
+            cookieCount: sessionData.cookies.length
+        });
+    } catch (error) {
+        console.error('Error processing session file:', error);
+        
+        // Clean up uploaded file on error
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        
+        res.status(400).json({ 
+            success: false, 
+            message: 'Error processing session file: ' + error.message 
+        });
+    }
+});
+
 // Create LinkedIn session
 app.post('/create-session', (req, res) => {
     const { uniqueId } = req.body;
@@ -734,18 +806,77 @@ app.post('/start-leads', upload.none(), (req, res) => {
     });
 });
 
-// Download leads report
+// Get leads report for dashboard
+app.get('/get-leads/:uniqueId', (req, res) => {
+    const { uniqueId } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+
+    try {
+        if (!fs.existsSync(leadsDir)) {
+            return res.status(404).json({ success: false, message: 'No leads directory found' });
+        }
+
+        // Collect all json reports (timestamped and default)
+        const files = fs.readdirSync(leadsDir)
+            .filter(f => f.endsWith('.json'))
+            .map(f => {
+                const fullPath = path.join(leadsDir, f);
+                return {
+                    name: f,
+                    path: fullPath,
+                    mtime: fs.statSync(fullPath).mtime
+                };
+            })
+            .sort((a, b) => b.mtime - a.mtime);
+
+        if (files.length === 0) {
+            return res.status(404).json({ success: false, message: 'No leads reports found' });
+        }
+
+        const latest = files[0];
+        const report = JSON.parse(fs.readFileSync(latest.path, 'utf8'));
+
+        return res.json({
+            success: true,
+            report,
+            fileName: latest.name,
+            generatedAt: latest.mtime
+        });
+    } catch (error) {
+        console.error('Error reading leads report:', error);
+        return res.status(500).json({ success: false, message: 'Error reading leads report' });
+    }
+});
+
+// Download latest leads report
 app.get('/download-leads/:uniqueId', (req, res) => {
     const { uniqueId } = req.params;
     const sanitizedId = sanitizeSessionId(uniqueId);
-    const sessionDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
-    const reportFile = path.join(sessionDir, 'leads_report.json');
-    
-    if (fs.existsSync(reportFile)) {
-        res.download(reportFile, `leads_report_${uniqueId}_${new Date().toISOString().split('T')[0]}.json`);
-    } else {
-        res.status(404).json({ success: false, message: 'No leads report found' });
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+
+    if (!fs.existsSync(leadsDir)) {
+        return res.status(404).json({ success: false, message: 'No leads directory found' });
     }
+
+    const files = fs.readdirSync(leadsDir)
+        .filter(f => f.endsWith('.json'))
+        .map(f => {
+            const fullPath = path.join(leadsDir, f);
+            return {
+                name: f,
+                path: fullPath,
+                mtime: fs.statSync(fullPath).mtime
+            };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+
+    if (files.length === 0) {
+        return res.status(404).json({ success: false, message: 'No leads report found' });
+    }
+
+    const latest = files[0];
+    return res.download(latest.path, `leads_report_${uniqueId}_${new Date().toISOString().split('T')[0]}.json`);
 });
 
 // Stop bot
