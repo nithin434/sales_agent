@@ -7,6 +7,7 @@ const path = require('path');
 // Session management
 const sessionId = process.env.SESSION_ID || 'default';
 const sanitizedSessionId = process.env.SANITIZED_SESSION_ID || sessionId;
+const HEADLESS = process.env.HEADLESS !== 'false';
 
 // Logger function
 function log(message, type = 'INFO') {
@@ -53,7 +54,7 @@ function loadSessionConfig() {
 class LeadGenerator {
   constructor(options = {}) {
     this.browser = null;
-    this.headless = options.headless !== undefined ? options.headless : false;
+    this.headless = options.headless !== undefined ? options.headless : HEADLESS;
     this.apiKey = options.apiKey || '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';
     this.sessionFilePath = options.sessionFilePath || path.join(__dirname, 'linkedin_session.json');
     this.userDataDir = options.userDataDir || path.join(__dirname, 'linkedin_user_data');
@@ -983,7 +984,7 @@ async function runLeadGeneration() {
   let location = sessionConfig.location;
   let maxLeads = sessionConfig.maxLeads;
   let outputFile = sessionConfig.outputFile;
-  let headless = false;
+  let headless = HEADLESS;
   
   // Override with command line arguments if provided
   for (const arg of args) {
