@@ -1569,10 +1569,156 @@ class SmartWhatsAppBot {
         const messages = this.chatHistory[contactId].messages;
         return messages.slice(-limit);
     }
+
+    // Process bulk message queue
+    async processBulkMessages(contactList) {
+        console.log(`\n📨 Starting bulk message processing for ${contactList.length} contacts...`);
+        
+        let successCount = 0;
+        let failureCount = 0;
+        const results = [];
+        
+        for (let i = 0; i < contactList.length; i++) {
+            const contact = contactList[i];
+            const { phone, description } = contact;
+            
+            try {
+                console.log(`\n[${i + 1}/${contactList.length}] Processing: ${phone}`);
+                console.log(`   Description: ${description?.substring(0, 50)}...`);
+                
+                // Format phone number for WhatsApp
+                let formattedPhone = phone.replace(/\D/g, ''); // Remove non-digits
+                
+                // Ensure country code format
+                if (!formattedPhone.startsWith('91') && formattedPhone.length === 10) {
+                    formattedPhone = '91' + formattedPhone; // Add India code if missing
+                }
+                
+                const contactId = formattedPhone + '@c.us';
+                console.log(`   Formatted contact ID: ${contactId}`);
+                
+                // Generate AI-powered personalized message based on description
+                let personalizedMessage = SIMPLE_REPLY;
+                
+                if (USE_AI_RESPONSES && description && description.trim()) {
+                    console.log(`   🤖 Generating AI response for description...`);
+                    try {
+                        // Use AI to generate contextual message based on description
+                        const aiMessage = await this.getGeminiResponse(description, phone, contactId);
+                        if (aiMessage && aiMessage !== SIMPLE_REPLY) {
+                            personalizedMessage = aiMessage;
+                            console.log(`   ✨ AI message generated successfully`);
+                        } else {
+                            // Fallback to description + personality
+                            personalizedMessage = `${description}\n\n${SIMPLE_REPLY}`;
+                            console.log(`   📝 Using description + default reply`);
+                        }
+                    } catch (aiError) {
+                        console.log(`   ⚠️ AI failed, using description + default: ${aiError.message}`);
+                        personalizedMessage = `${description}\n\n${SIMPLE_REPLY}`;
+                    }
+                } else if (description && description.trim()) {
+                    // No AI, just use description + simple reply
+                    personalizedMessage = `${description}\n\n${SIMPLE_REPLY}`;
+                    console.log(`   📝 Using description + default reply (AI disabled)`);
+                }
+                
+                // Send message directly to number (works even for new/non-saved contacts)
+                console.log(`   📤 Sending message...`);
+                await this.client.sendMessage(contactId, personalizedMessage);
+                
+                console.log(`   ✅ Message sent successfully to ${phone}`);
+                successCount++;
+                
+                results.push({
+                    phone,
+                    description,
+                    status: 'success',
+                    messageSent: personalizedMessage.substring(0, 100) + '...',
+                    timestamp: new Date().toISOString()
+                });
+                
+                // Store in chat history
+                this.storeMessage(contactId, phone, personalizedMessage, true, 'bulk');
+                this.updateAnalytics(contactId, phone, personalizedMessage, true);
+                
+                // Delay between messages (3-5 seconds to avoid rate limiting)
+                const delay = Math.random() * 2000 + 3000;
+                console.log(`   ⏳ Waiting ${(delay/1000).toFixed(1)}s before next message...`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+            } catch (err) {
+                console.log(`   ❌ Failed to send to ${phone}: ${err.message}`);
+                failureCount++;
+                
+                results.push({
+                    phone,
+                    description,
+                    status: 'failed',
+                    error: err.message,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+        
+        // Save bulk messaging results
+        const bulkResultsFile = 'bulk_message_results.json';
+        try {
+            fs.writeFileSync(bulkResultsFile, JSON.stringify({
+                summary: {
+                    totalContacts: contactList.length,
+                    successCount,
+                    failureCount,
+                    completedAt: new Date().toISOString()
+                },
+                results
+            }, null, 2));
+            
+            console.log(`\n✅ Bulk messaging completed!`);
+            console.log(`   📊 Success: ${successCount}/${contactList.length}`);
+            console.log(`   ❌ Failed: ${failureCount}/${contactList.length}`);
+            console.log(`   💾 Results saved to: ${bulkResultsFile}`);
+        } catch (err) {
+            console.error(`Error saving bulk results: ${err.message}`);
+        }
+    }
+
+    // Load and process bulk contacts from file
+    async loadAndProcessBulkContacts() {
+        try {
+            const bulkFile = 'bulk_contacts.json';
+            if (fs.existsSync(bulkFile)) {
+                console.log(`\n📂 Found bulk contacts file, loading...`);
+                const bulkData = JSON.parse(fs.readFileSync(bulkFile, 'utf8'));
+                
+                if (bulkData.contacts && bulkData.contacts.length > 0) {
+                    console.log(`📋 Loaded ${bulkData.contacts.length} contacts for bulk messaging`);
+                    
+                    // Process the bulk messages
+                    await this.processBulkMessages(bulkData.contacts);
+                    
+                    // Rename file to prevent reprocessing
+                    fs.renameSync(bulkFile, `${bulkFile}.processed_${Date.now()}`);
+                    console.log(`✓ Bulk file renamed to prevent reprocessing`);
+                }
+            }
+        } catch (err) {
+            console.error(`Error loading bulk contacts: ${err.message}`);
+        }
+    }
 }
 
 // Create and start the bot
 const bot = new SmartWhatsAppBot();
+
+// Load bulk contacts immediately after bot is ready
+const originalReady = bot.client._events ? bot.client._events['ready'] : null;
+const checkBulkInterval = setInterval(async () => {
+    if (bot.botReady) {
+        clearInterval(checkBulkInterval);
+        await bot.loadAndProcessBulkContacts();
+    }
+}, 5000);
 
 // Handle graceful shutdown
 process.on('SIGINT', async () => {

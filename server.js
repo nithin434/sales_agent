@@ -428,6 +428,111 @@ app.post('/start-whatsapp', upload.none(), (req, res) => {
     });
 });
 
+// Bulk WhatsApp Messaging
+app.post('/bulk-whatsapp', upload.single('bulkFile'), async (req, res) => {
+    const { uniqueId } = req.body;
+    
+    console.log(`Bulk WhatsApp request for session: ${uniqueId}`);
+    
+    if (!uniqueId) {
+        return res.status(400).json({ success: false, message: 'Missing uniqueId' });
+    }
+    
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    
+    try {
+        const sanitizedId = sanitizeSessionId(uniqueId);
+        const filePath = req.file.path;
+        const fileName = req.file.originalname;
+        
+        let contactData = [];
+        
+        // Parse Excel/CSV file
+        if (fileName.endsWith('.xlsx')) {
+            try {
+                const XLSX = require('xlsx');
+                const workbook = XLSX.readFile(filePath);
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const data = XLSX.utils.sheet_to_json(worksheet);
+                
+                contactData = data.map(row => ({
+                    phone: String(row.phone_number || row.phoneNumber || row['Phone Number'] || '').trim(),
+                    description: String(row.description || row.Description || '').trim()
+                })).filter(item => item.phone);
+                
+                console.log(`Parsed ${contactData.length} contacts from Excel file`);
+            } catch (err) {
+                console.error('Excel parsing error:', err.message);
+                return res.status(400).json({ success: false, message: `Error parsing Excel: ${err.message}` });
+            }
+        } else if (fileName.endsWith('.csv')) {
+            try {
+                const csv = require('csv-parser');
+                const fs = require('fs');
+                
+                await new Promise((resolve, reject) => {
+                    fs.createReadStream(filePath)
+                        .pipe(csv())
+                        .on('data', (row) => {
+                            const phone = String(row.phone_number || row.phoneNumber || row['Phone Number'] || '').trim();
+                            const description = String(row.description || row.Description || '').trim();
+                            if (phone) {
+                                contactData.push({ phone, description });
+                            }
+                        })
+                        .on('end', resolve)
+                        .on('error', reject);
+                });
+                
+                console.log(`Parsed ${contactData.length} contacts from CSV file`);
+            } catch (err) {
+                console.error('CSV parsing error:', err.message);
+                return res.status(400).json({ success: false, message: `Error parsing CSV: ${err.message}` });
+            }
+        } else {
+            return res.status(400).json({ success: false, message: 'Unsupported file format. Use .xlsx or .csv' });
+        }
+        
+        if (contactData.length === 0) {
+            return res.status(400).json({ success: false, message: 'No valid contacts found in file' });
+        }
+        
+        // Save contact data to session directory for bot to process
+        const sessionDir = path.join(__dirname, 'sessions', sanitizedId, 'whatsapp');
+        if (!fs.existsSync(sessionDir)) {
+            fs.mkdirSync(sessionDir, { recursive: true });
+        }
+        
+        const bulkDataFile = path.join(sessionDir, 'bulk_contacts.json');
+        fs.writeFileSync(bulkDataFile, JSON.stringify({
+            contacts: contactData,
+            createdAt: new Date().toISOString(),
+            totalCount: contactData.length
+        }, null, 2));
+        
+        console.log(`Saved ${contactData.length} contacts to bulk_contacts.json`);
+        
+        // Clean up uploaded file
+        fs.unlinkSync(filePath);
+        
+        res.json({ 
+            success: true, 
+            message: `Bulk messaging prepared for ${contactData.length} contacts`,
+            totalContacts: contactData.length,
+            sessionDir: sanitizedId
+        });
+        
+    } catch (error) {
+        console.error('Bulk WhatsApp error:', error);
+        res.status(500).json({ 
+            success: false, 
+            message: `Server error: ${error.message}` 
+        });
+    }
+});
+
 // Start Instagram bot
 app.post('/start-instagram', upload.single('cookies'), (req, res) => {
     const { uniqueId, personality, users } = req.body;
@@ -846,24 +951,46 @@ app.get('/download-leads/:uniqueId', (req, res) => {
         return res.status(404).json({ success: false, message: 'No leads directory found' });
     }
 
-    const files = fs.readdirSync(leadsDir)
+    // Look for CSV files first, fallback to JSON
+    const csvFiles = fs.readdirSync(leadsDir)
+        .filter(f => f.endsWith('.csv'))
+        .map(f => {
+            const fullPath = path.join(leadsDir, f);
+            return {
+                name: f,
+                path: fullPath,
+                mtime: fs.statSync(fullPath).mtime,
+                type: 'csv'
+            };
+        })
+        .sort((a, b) => b.mtime - a.mtime);
+
+    const jsonFiles = fs.readdirSync(leadsDir)
         .filter(f => f.endsWith('.json'))
         .map(f => {
             const fullPath = path.join(leadsDir, f);
             return {
                 name: f,
                 path: fullPath,
-                mtime: fs.statSync(fullPath).mtime
+                mtime: fs.statSync(fullPath).mtime,
+                type: 'json'
             };
         })
         .sort((a, b) => b.mtime - a.mtime);
 
-    if (files.length === 0) {
+    const allFiles = [...csvFiles, ...jsonFiles].sort((a, b) => b.mtime - a.mtime);
+
+    if (allFiles.length === 0) {
         return res.status(404).json({ success: false, message: 'No leads report found' });
     }
 
-    const latest = files[0];
-    return res.download(latest.path, `leads_report_${uniqueId}_${new Date().toISOString().split('T')[0]}.json`);
+    // Prefer CSV files over JSON
+    const latest = csvFiles.length > 0 ? csvFiles[0] : jsonFiles[0];
+    const fileExtension = latest.type;
+    const fileName = `leads_report_${uniqueId}_${new Date().toISOString().split('T')[0]}.${fileExtension}`;
+    
+    console.log(`Downloading ${fileExtension.toUpperCase()} file: ${latest.path}`);
+    return res.download(latest.path, fileName);
 });
 
 // Stop bot

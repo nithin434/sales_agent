@@ -521,6 +521,26 @@
                 
                 <button class="btn" onclick="startWhatsAppBot()">Start WhatsApp Bot</button>
                 <button class="btn btn-danger" onclick="stopBot('whatsapp')">Stop Bot</button>
+
+                <hr style="margin: 24px 0; border: none; border-top: 1px solid #30363d;">
+                
+                <h4 style="color: #f0f6fc; margin-bottom: 16px; font-size: 16px;">📤 Bulk WhatsApp Messaging</h4>
+                <div class="info-box">
+                    <h4>Upload Excel/CSV File for Bulk Messaging</h4>
+                    <p><strong>File Format Requirements:</strong></p>
+                    <ul>
+                        <li>Column 1: <code>phone_number</code> (with country code, e.g., 919876543210)</li>
+                        <li>Column 2: <code>description</code> (personalized context for each message)</li>
+                    </ul>
+                    <p><strong>Supported Formats:</strong> .xlsx (Excel) or .csv</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="bulkWhatsAppFile">Select Excel/CSV File:</label>
+                    <input type="file" id="bulkWhatsAppFile" accept=".xlsx,.csv" placeholder="Book1.xlsx or contacts.csv">
+                </div>
+                
+                <button class="btn btn-primary" onclick="sendBulkWhatsAppMessages()">📨 Send Bulk Messages</button>
             </div>
             
             <!-- Instagram Bot Controls -->
@@ -758,7 +778,7 @@
                 </div>
                 
                 <!-- Bot Selection -->
-                <div class="bot-selection">
+                <div class="bot-selection" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
                     <div class="bot-card" onclick="selectBot('leads')">
                         <h3>Lead Generation</h3>
                         <p>Intelligent lead discovery and management system for finding potential clients</p>
@@ -766,6 +786,10 @@
                     <div class="bot-card" onclick="selectBot('whatsapp')">
                         <h3>WhatsApp Bot</h3>
                         <p>Automated responses for WhatsApp messages using AI-powered conversations</p>
+                    </div>
+                    <div class="bot-card" onclick="selectBot('bulkwhatsapp')">
+                        <h3>📨 Bulk WhatsApp</h3>
+                        <p>Send personalized AI-generated messages to multiple contacts from Excel/CSV files</p>
                     </div>
                     <div class="bot-card" onclick="selectBot('linkedin')">
                         <h3>LinkedIn Bot</h3>
@@ -821,6 +845,67 @@
                     </div>
                     <button class="btn" onclick="startWhatsAppBot()">Start WhatsApp Bot</button>
                     <button class="btn btn-danger" onclick="stopBot('whatsapp')">Stop Bot</button>
+                </div>
+
+                <!-- Bulk WhatsApp Controls -->
+                <div class="bot-controls" id="bulkwhatsappControls">
+                    <h3>📨 Bulk WhatsApp Messaging</h3>
+                    
+                    <div class="info-box">
+                        <h4>🤖 AI-Powered Personalized Messaging</h4>
+                        <p>Upload an Excel or CSV file with contact numbers and descriptions. The bot will:</p>
+                        <ul>
+                            <li>✨ Use AI to generate personalized messages based on each description</li>
+                            <li>📱 Send to both saved and unsaved contacts</li>
+                            <li>⏱️ Add 3-5 second delays between messages to avoid bans</li>
+                            <li>📊 Track success/failure for each message</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="info-box">
+                        <h4>📋 File Format Requirements</h4>
+                        <p><strong>Required Columns:</strong></p>
+                        <ul>
+                            <li><code>phone_number</code> - Contact number with country code (e.g., 919876543210)</li>
+                            <li><code>description</code> - Context for AI to generate personalized message</li>
+                        </ul>
+                        <p><strong>Supported Formats:</strong> .xlsx (Excel) or .csv</p>
+                        <p><strong>Example:</strong></p>
+                        <table style="font-size: 12px; border: 1px solid #30363d; margin-top: 8px;">
+                            <tr style="background: #161b22;">
+                                <th style="padding: 4px 8px; border: 1px solid #30363d;">phone_number</th>
+                                <th style="padding: 4px 8px; border: 1px solid #30363d;">description</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px 8px; border: 1px solid #30363d;">919876543210</td>
+                                <td style="padding: 4px 8px; border: 1px solid #30363d;">Follow up on web development proposal</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 4px 8px; border: 1px solid #30363d;">918765432109</td>
+                                <td style="padding: 4px 8px; border: 1px solid #30363d;">Introduce our mobile app services</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="bulkWhatsAppFile">📎 Select Excel/CSV File:</label>
+                        <input type="file" id="bulkWhatsAppFile" accept=".xlsx,.csv" style="padding: 12px; font-size: 14px; cursor: pointer;">
+                        <small>Choose a file containing phone numbers and message descriptions</small>
+                    </div>
+                    
+                    <button class="btn btn-primary" onclick="sendBulkWhatsAppMessages()" style="font-size: 16px; padding: 12px 24px;">
+                        📨 Upload & Start Bulk Messaging
+                    </button>
+                    
+                    <div class="info-box" style="margin-top: 16px; background: rgba(88, 166, 255, 0.1); border-color: #58a6ff;">
+                        <h4 style="color: #58a6ff;">⚡ Important Notes</h4>
+                        <ul>
+                            <li>Make sure WhatsApp Web is connected (scan QR if needed)</li>
+                            <li>Messages are sent sequentially with delays to avoid rate limiting</li>
+                            <li>Check logs below to monitor progress</li>
+                            <li>Results will be saved to <code>bulk_message_results.json</code></li>
+                        </ul>
+                    </div>
                 </div>
 
                 <!-- LinkedIn Bot Controls -->
@@ -1325,6 +1410,48 @@
                 }
             } catch (error) {
                 console.error('Error starting WhatsApp bot:', error);
+                updateStatus('Error connecting to server', 'error');
+            }
+        }
+
+        // Send Bulk WhatsApp Messages
+        async function sendBulkWhatsAppMessages() {
+            const fileInput = document.getElementById('bulkWhatsAppFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please select an Excel or CSV file');
+                return;
+            }
+
+            if (!file.name.match(/\.(xlsx|csv)$/i)) {
+                alert('Please select a valid Excel (.xlsx) or CSV (.csv) file');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('uniqueId', currentUniqueId);
+            formData.append('bulkFile', file);
+
+            try {
+                updateStatus('Processing bulk WhatsApp messages...', 'info');
+                
+                const response = await fetch(`${API_BASE}/bulk-whatsapp`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateStatus(`Bulk messaging started! Sending ${result.totalContacts} messages...`, 'success');
+                    startAutoRefresh();
+                    fileInput.value = ''; // Clear file input
+                } else {
+                    updateStatus(`Error: ${result.message}`, 'error');
+                }
+            } catch (error) {
+                console.error('Error sending bulk messages:', error);
                 updateStatus('Error connecting to server', 'error');
             }
         }

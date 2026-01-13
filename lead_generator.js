@@ -3,6 +3,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs').promises;
 const fsSynch = require('fs');
 const path = require('path');
+const nodemailer = require('nodemailer');
 
 // Session management
 const sessionId = process.env.SESSION_ID || 'default';
@@ -21,7 +22,14 @@ function loadSessionConfig() {
         keywords: ['software development', 'web development', 'mobile app'],
         location: 'San Francisco',
         maxLeads: 50,
-        outputFile: 'leads_report.json'
+        outputFile: 'leads_report.csv',
+        email: {
+            from: 'nithinjambula89@gmail.com',
+            password: 'qyum bzzh dmxn yivo',
+            smtp: 'smtp.gmail.com',
+            port: 587,
+            notifyEmails: ['nithin@gmail.com', 'assk@gmail.com']
+        }
     };
     
     try {
@@ -48,6 +56,19 @@ function loadSessionConfig() {
         log(`Config loading error: ${err.message}`, 'WARNING');
         return config;
     }
+}
+
+// Email transporter setup
+function createEmailTransporter(emailConfig) {
+    return nodemailer.createTransporter({
+        host: emailConfig.smtp,
+        port: emailConfig.port,
+        secure: false,
+        auth: {
+            user: emailConfig.from,
+            pass: emailConfig.password
+        }
+    });
 }
 
 class LeadGenerator {
@@ -500,6 +521,198 @@ class LeadGenerator {
     }
   }
 
+  async searchJustDialLeads(keywords = [], location = '') {
+    const page = await this.browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    
+    try {
+      const leads = [];
+      
+      // Search each keyword on JustDial
+      for (const keyword of keywords.slice(0, 3)) {
+        console.log(`🟡 JustDial Search: "${keyword}" in ${location || 'all locations'}`);
+        
+        try {
+          const searchQuery = `${keyword} ${location}`.trim();
+          await page.goto(`https://www.justdial.com/search?q=${encodeURIComponent(searchQuery)}`, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000
+          });
+
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          
+          // Scroll to load more content
+          await page.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight / 2);
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          await page.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+          });
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          const results = await page.evaluate(() => {
+            const items = [];
+            
+            // JustDial result selectors
+            const businessCards = document.querySelectorAll('li[data-resulttype="organic"], .store-details, .list-store, .result-list li, div[class*="result"]');
+            
+            businessCards.forEach((card, idx) => {
+              if (idx >= 25) return;
+              
+              try {
+                const nameEl = card.querySelector('a[title], h3 a, .fn a, .store-name, .heading a');
+                const addressEl = card.querySelector('.locality, .address, .store-address, .adr');
+                const phoneEl = card.querySelector('.contact-info, .tel, .phone, .contact-no');
+                const categoryEl = card.querySelector('.kt, .category, .business-category');
+                
+                if (nameEl) {
+                  const name = nameEl.innerText.trim();
+                  const profileUrl = nameEl.href || '';
+                  
+                  if (name && name.length > 2) {
+                    const fullText = card.innerText;
+                    
+                    // Extract contact info
+                    const emailMatch = fullText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                    const phoneMatch = fullText.match(/\+?91[\s\-]?[6-9]\d{9}|\+?\d{10,12}/);
+                    
+                    items.push({
+                      name: name,
+                      title: categoryEl ? categoryEl.innerText.trim() : '',
+                      company: name,
+                      profileUrl: profileUrl.startsWith('http') ? profileUrl : 'https://www.justdial.com' + profileUrl,
+                      snippet: fullText.substring(0, 300),
+                      location: addressEl ? addressEl.innerText.trim() : '',
+                      email: emailMatch ? emailMatch[0] : '',
+                      phone: phoneMatch ? phoneMatch[0].replace(/\s+/g, '') : phoneEl ? phoneEl.innerText.trim() : '',
+                      source: 'JustDial'
+                    });
+                  }
+                }
+              } catch (e) {
+                // Skip errors
+              }
+            });
+            
+            return items;
+          });
+
+          console.log(`   Found ${results.length} JustDial businesses`);
+          leads.push(...results);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (err) {
+          console.log(`   JustDial query failed: ${err.message}`);
+        }
+      }
+
+      await page.close();
+      return leads;
+      
+    } catch (err) {
+      console.error('JustDial search error:', err.message);
+      await page.close();
+      return [];
+    }
+  }
+
+  async searchIndiaMartLeads(keywords = [], location = '') {
+    const page = await this.browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
+    
+    try {
+      const leads = [];
+      
+      // Search each keyword on IndiaMart
+      for (const keyword of keywords.slice(0, 3)) {
+        console.log(`🟠 IndiaMart Search: "${keyword}" in ${location || 'all locations'}`);
+        
+        try {
+          const searchQuery = `${keyword} ${location}`.trim();
+          await page.goto(`https://www.indiamart.com/search.mp?ss=${encodeURIComponent(searchQuery)}`, {
+            waitUntil: 'domcontentloaded',
+            timeout: 30000
+          });
+
+          await new Promise(resolve => setTimeout(resolve, 4000));
+          
+          // Scroll to load more content
+          await page.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight / 2);
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          
+          await page.evaluate(() => {
+            window.scrollTo(0, document.body.scrollHeight);
+          });
+          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          const results = await page.evaluate(() => {
+            const items = [];
+            
+            // IndiaMart result selectors
+            const companyCards = document.querySelectorAll('.lst, .ser-dtls, .company-dtls, .search-result, .serp, div[class*="company"]');
+            
+            companyCards.forEach((card, idx) => {
+              if (idx >= 25) return;
+              
+              try {
+                const nameEl = card.querySelector('.cname a, .company-name a, .heading a, h3 a, a[title]');
+                const contactPersonEl = card.querySelector('.cont-person, .contact-person, .person-name');
+                const locationEl = card.querySelector('.city, .location, .address, .locality');
+                const phoneEl = card.querySelector('.mobile, .phone, .contact-no, .call');
+                
+                if (nameEl) {
+                  const companyName = nameEl.innerText.trim();
+                  const profileUrl = nameEl.href || '';
+                  
+                  if (companyName && companyName.length > 2) {
+                    const fullText = card.innerText;
+                    
+                    // Extract contact info
+                    const emailMatch = fullText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                    const phoneMatch = fullText.match(/\+?91[\s\-]?[6-9]\d{9}|\+?\d{10,12}/);
+                    
+                    items.push({
+                      name: contactPersonEl ? contactPersonEl.innerText.trim() : companyName,
+                      title: 'Business Owner',
+                      company: companyName,
+                      profileUrl: profileUrl.startsWith('http') ? profileUrl : 'https://www.indiamart.com' + profileUrl,
+                      snippet: fullText.substring(0, 300),
+                      location: locationEl ? locationEl.innerText.trim() : '',
+                      email: emailMatch ? emailMatch[0] : '',
+                      phone: phoneMatch ? phoneMatch[0].replace(/\s+/g, '') : phoneEl ? phoneEl.innerText.trim() : '',
+                      source: 'IndiaMart'
+                    });
+                  }
+                }
+              } catch (e) {
+                // Skip errors
+              }
+            });
+            
+            return items;
+          });
+
+          console.log(`   Found ${results.length} IndiaMart companies`);
+          leads.push(...results);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } catch (err) {
+          console.log(`   IndiaMart query failed: ${err.message}`);
+        }
+      }
+
+      await page.close();
+      return leads;
+      
+    } catch (err) {
+      console.error('IndiaMart search error:', err.message);
+      await page.close();
+      return [];
+    }
+  }
+
   extractDomainInfo(url) {
     try {
       if (!url) return { domain: '', industry: 'Unknown', platform: 'Unknown' };
@@ -849,6 +1062,233 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
     return unique;
   }
 
+  // Convert leads to CSV format
+  convertLeadsToCSV(leads, includeStrategy = false) {
+    if (!leads || leads.length === 0) {
+      return 'Name,Title,Company,Location,Email,Phone,Source,Score,Profile URL,Snippet,Found At\nNo leads found,,,,,,,0,,,';
+    }
+
+    const headers = [
+      'Name',
+      'Title', 
+      'Company',
+      'Location',
+      'Email',
+      'Phone', 
+      'Source',
+      'Score',
+      'Profile URL',
+      'Snippet',
+      'Found At'
+    ];
+
+    if (includeStrategy) {
+      headers.push('Approach Strategy');
+    }
+
+    let csvContent = headers.join(',') + '\n';
+
+    leads.forEach(lead => {
+      const row = [
+        this.escapeCsvField(lead.name || ''),
+        this.escapeCsvField(lead.title || ''),
+        this.escapeCsvField(lead.company || ''), 
+        this.escapeCsvField(lead.location || ''),
+        this.escapeCsvField(lead.email || ''),
+        this.escapeCsvField(lead.phone || ''),
+        this.escapeCsvField(lead.source || ''),
+        lead.score || 0,
+        this.escapeCsvField(lead.profileUrl || lead.url || ''),
+        this.escapeCsvField((lead.snippet || '').substring(0, 200)),
+        this.escapeCsvField(lead.foundAt || new Date().toISOString())
+      ];
+
+      if (includeStrategy) {
+        row.push(this.escapeCsvField((lead.approachStrategy || '').replace(/\n/g, ' ').substring(0, 500)));
+      }
+
+      csvContent += row.join(',') + '\n';
+    });
+
+    return csvContent;
+  }
+
+  // Escape CSV fields to handle commas, quotes, and newlines
+  escapeCsvField(field) {
+    if (typeof field !== 'string') {
+      field = String(field);
+    }
+    
+    // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
+    if (field.includes(',') || field.includes('"') || field.includes('\n') || field.includes('\r')) {
+      return '"' + field.replace(/"/g, '""') + '"';
+    }
+    
+    return field;
+  }
+
+  // Convert leads to CSV format
+  convertLeadsToCSV(leads, includeStrategy = false) {
+    if (!leads || leads.length === 0) {
+      return 'No leads found';
+    }
+
+    const headers = [
+      'Name',
+      'Title', 
+      'Company',
+      'Location',
+      'Email',
+      'Phone', 
+      'Source',
+      'Score',
+      'Profile URL',
+      'Snippet',
+      'Found At'
+    ];
+
+    if (includeStrategy) {
+      headers.push('Approach Strategy');
+    }
+
+    let csvContent = headers.join(',') + '\n';
+
+    leads.forEach(lead => {
+      const row = [
+        this.escapeCsvField(lead.name || ''),
+        this.escapeCsvField(lead.title || ''),
+        this.escapeCsvField(lead.company || ''), 
+        this.escapeCsvField(lead.location || ''),
+        this.escapeCsvField(lead.email || ''),
+        this.escapeCsvField(lead.phone || ''),
+        this.escapeCsvField(lead.source || ''),
+        lead.score || 0,
+        this.escapeCsvField(lead.profileUrl || lead.url || ''),
+        this.escapeCsvField((lead.snippet || '').substring(0, 200)),
+        this.escapeCsvField(lead.foundAt || new Date().toISOString())
+      ];
+
+      if (includeStrategy) {
+        row.push(this.escapeCsvField((lead.approachStrategy || '').replace(/\n/g, ' ').substring(0, 500)));
+      }
+
+      csvContent += row.join(',') + '\n';
+    });
+
+    return csvContent;
+  }
+
+  // Escape CSV fields to handle commas, quotes, and newlines
+  escapeCsvField(field) {
+    if (typeof field !== 'string') {
+      field = String(field);
+    }
+    
+    // If field contains comma, quote, or newline, wrap in quotes and escape internal quotes
+    if (field.includes(',') || field.includes('"') || field.includes('\n') || field.includes('\r')) {
+      return '"' + field.replace(/"/g, '""') + '"';
+    }
+    
+    return field;
+  }
+
+  // Send email notification with CSV download link
+  async sendLeadsNotification(report, csvFilePath, sessionConfig) {
+    if (!sessionConfig.email || !sessionConfig.email.notifyEmails || sessionConfig.email.notifyEmails.length === 0) {
+      log('No notification emails configured', 'WARNING');
+      return;
+    }
+
+    try {
+      const emailTransporter = createEmailTransporter(sessionConfig.email);
+      
+      // Create download URL (assuming server is running on localhost:3000)
+      const serverPort = process.env.PORT || 3000;
+      const downloadUrl = `http://localhost:${serverPort}/download-leads/${encodeURIComponent(this.sessionId)}`;
+      
+      const emailSubject = `🎯 Lead Generation Complete - ${report.summary.totalLeads} New Leads Found`;
+      
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0066cc; border-bottom: 2px solid #0066cc; padding-bottom: 10px;">
+            🎯 Lead Generation Report
+          </h2>
+          
+          <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #333; margin-top: 0;">📊 Summary</h3>
+            <ul style="line-height: 1.6;">
+              <li><strong>Total Leads Found:</strong> ${report.summary.totalLeads}</li>
+              <li><strong>High Priority Leads (70+):</strong> ${report.summary.highPriorityLeads}</li>
+              <li><strong>Medium Priority Leads (40-69):</strong> ${report.summary.mediumPriorityLeads}</li>
+              <li><strong>Low Priority Leads (<40):</strong> ${report.summary.lowPriorityLeads}</li>
+              <li><strong>Session ID:</strong> ${this.sessionId}</li>
+              <li><strong>Generated:</strong> ${new Date(report.generatedAt).toLocaleString()}</li>
+            </ul>
+          </div>
+
+          <div style="background-color: #e8f4f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #0066cc; margin-top: 0;">🔍 Search Parameters</h3>
+            <ul style="line-height: 1.6;">
+              <li><strong>Keywords:</strong> ${report.searchParams.keywords.join(', ')}</li>
+              <li><strong>Location:</strong> ${report.searchParams.location || 'Global'}</li>
+              <li><strong>Max Leads:</strong> ${report.searchParams.maxLeads}</li>
+            </ul>
+          </div>
+
+          <div style="background-color: #f0f8f0; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #28a745; margin-top: 0;">📱 Top 3 Leads Preview</h3>
+            ${report.leads.slice(0, 3).map((lead, i) => `
+              <div style="border-left: 3px solid #28a745; padding-left: 15px; margin: 10px 0;">
+                <strong>${i + 1}. ${lead.name || 'Unknown'}</strong> (Score: ${lead.score})<br>
+                <span style="color: #666;">${lead.title || ''} at ${lead.company || 'Unknown Company'}</span><br>
+                <span style="color: #666;">Source: ${lead.source}</span>
+                ${lead.email ? `<br><span style="color: #0066cc;">📧 ${lead.email}</span>` : ''}
+                ${lead.phone ? `<br><span style="color: #0066cc;">📞 ${lead.phone}</span>` : ''}
+              </div>
+            `).join('')}
+          </div>
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${downloadUrl}" 
+               style="background-color: #0066cc; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+              📥 Download Full CSV Report
+            </a>
+          </div>
+
+          <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404;">
+              <strong>Note:</strong> The CSV file contains all ${report.summary.totalLeads} leads with complete contact information, 
+              approach strategies for top leads, and detailed scoring metrics.
+            </p>
+          </div>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+          <p style="color: #666; font-size: 12px; text-align: center;">
+            Generated by Lead Generation System | Session: ${this.sessionId}
+          </p>
+        </div>
+      `;
+
+      // Send to all notification emails
+      for (const email of sessionConfig.email.notifyEmails) {
+        try {
+          const info = await emailTransporter.sendMail({
+            from: sessionConfig.email.from,
+            to: email,
+            subject: emailSubject,
+            html: emailBody
+          });
+          log(`Notification email sent to ${email}: ${info.messageId}`, 'SUCCESS');
+        } catch (err) {
+          log(`Failed to send email to ${email}: ${err.message}`, 'ERROR');
+        }
+      }
+
+    } catch (err) {
+      log(`Email notification error: ${err.message}`, 'ERROR');
+    }
+  }
+
   async generateFullLeadReport(options = {}) {
     // Load session configuration
     const sessionConfig = loadSessionConfig();
@@ -907,6 +1347,26 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
       console.log(`❌ Reddit search failed: ${err.message}\n`);
     }
 
+    // Search JustDial
+    try {
+      console.log('🟡 Searching JustDial...');
+      const justDialLeads = await this.searchJustDialLeads(keywords, location);
+      allLeads.push(...justDialLeads);
+      console.log(`✅ Found ${justDialLeads.length} JustDial leads\n`);
+    } catch (err) {
+      console.log(`❌ JustDial search failed: ${err.message}\n`);
+    }
+
+    // Search IndiaMart
+    try {
+      console.log('🟠 Searching IndiaMart...');
+      const indiaMartLeads = await this.searchIndiaMartLeads(keywords, location);
+      allLeads.push(...indiaMartLeads);
+      console.log(`✅ Found ${indiaMartLeads.length} IndiaMart leads\n`);
+    } catch (err) {
+      console.log(`❌ IndiaMart search failed: ${err.message}\n`);
+    }
+
     // Deduplicate
     const uniqueLeads = this.deduplicateLeads(allLeads).slice(0, maxLeads);
     console.log(`\n📊 Total unique leads: ${uniqueLeads.length}`);
@@ -958,6 +1418,14 @@ Keep professional, friendly, and action-oriented. Total: 200-250 words.`;
     log(`High priority leads: ${report.summary.highPriorityLeads}`, 'SUCCESS');
     log(`Medium priority leads: ${report.summary.mediumPriorityLeads}`, 'SUCCESS');
     log(`Low priority leads: ${report.summary.lowPriorityLeads}`, 'SUCCESS');
+
+    // Send email notification in background
+    if (uniqueLeads.length > 0) {
+      setTimeout(() => {
+        this.sendLeadsNotification(report, '', sessionConfig)
+          .catch(err => log(`Background email notification failed: ${err.message}`, 'ERROR'));
+      }, 1000); // Send after 1 second delay
+    }
 
     return report;
   }
@@ -1013,10 +1481,25 @@ async function runLeadGeneration() {
       includeApproachStrategy: true
     });
 
-    // Save report with timestamp
-    const timestampedFile = `leads_report_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    await fs.writeFile(outputFile, JSON.stringify(report, null, 2));
-    await fs.writeFile(timestampedFile, JSON.stringify(report, null, 2));
+    // Save report with timestamp in both CSV and JSON formats
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const timestampedCsvFile = `leads_report_${timestamp}.csv`;
+    const timestampedJsonFile = `leads_report_${timestamp}.json`;
+    
+    // Generate CSV content
+    const csvContent = this.convertLeadsToCSV(report.leads, true);
+    
+    // Save CSV files (main output format)
+    const csvOutputFile = outputFile.endsWith('.json') ? outputFile.replace('.json', '.csv') : 
+                         outputFile.endsWith('.csv') ? outputFile : outputFile + '.csv';
+    await fs.writeFile(csvOutputFile, csvContent);
+    await fs.writeFile(timestampedCsvFile, csvContent);
+    
+    // Also save JSON for internal processing
+    const jsonOutputFile = outputFile.endsWith('.csv') ? outputFile.replace('.csv', '.json') : 
+                          outputFile.endsWith('.json') ? outputFile : outputFile + '.json';
+    await fs.writeFile(jsonOutputFile, JSON.stringify(report, null, 2));
+    await fs.writeFile(timestampedJsonFile, JSON.stringify(report, null, 2));
     
     log('========================================');
     log('LEAD GENERATION REPORT');
@@ -1026,6 +1509,10 @@ async function runLeadGeneration() {
     log(`High Priority (70+): ${report.summary.highPriorityLeads}`);
     log(`Medium Priority (40-69): ${report.summary.mediumPriorityLeads}`);
     log(`Low Priority (<40): ${report.summary.lowPriorityLeads}`);
+    log(`CSV Report saved as: ${timestampedCsvFile}`);
+    log(`JSON Backup saved as: ${timestampedJsonFile}`);
+    log(`CSV Report saved as: ${timestampedCsvFile}`);
+    log(`JSON Backup saved as: ${timestampedJsonFile}`);
     
     if (report.leads.length > 0) {
       log('TOP 5 LEADS:');
