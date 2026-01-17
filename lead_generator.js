@@ -1453,6 +1453,7 @@ async function runLeadGeneration() {
   let maxLeads = sessionConfig.maxLeads;
   let outputFile = sessionConfig.outputFile;
   let headless = HEADLESS;
+
   
   // Override with command line arguments if provided
   for (const arg of args) {

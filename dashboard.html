@@ -1,0 +1,2341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuminaFlow | Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8f9fb;
+            min-height: 100vh;
+            color: #1a1d23;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.5s ease-out forwards;
+        }
+        
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 1px solid #e5e7eb;
+            padding: 24px 0;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.02);
+        }
+        
+        .sidebar-header {
+            padding: 0 24px 24px;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .logo {
+            font-size: 20px;
+            font-weight: 800;
+            color: #1a1d23;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 20px;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+        }
+        
+        .logo-text {
+            color: #1a1d23;
+        }
+        
+        .logo-text span {
+            color: #667eea;
+        }
+        
+        .nav-section {
+            padding: 20px 0;
+        }
+        
+        .nav-label {
+            padding: 0 24px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #9ca3af;
+            margin-bottom: 8px;
+        }
+        
+        .nav-item {
+            padding: 12px 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 600;
+            border-left: 3px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: #f9fafb;
+            color: #667eea;
+        }
+        
+        .nav-item.active {
+            background: linear-gradient(90deg, rgba(102, 126, 234, 0.08) 0%, transparent 100%);
+            color: #667eea;
+            border-left-color: #667eea;
+        }
+        
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: 260px;
+            flex: 1;
+            padding: 32px;
+            max-width: calc(100vw - 260px);
+        }
+        
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        
+        .page-header {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        
+        .breadcrumb {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #667eea;
+        }
+        
+        .page-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #1a1d23;
+            letter-spacing: -0.5px;
+        }
+        
+        .page-subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        
+        .topbar-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+        }
+        
+        .user-email {
+            font-size: 13px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #059669;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #10b981;
+            border-radius: 50%;
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 14px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: #f9fafb;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.2);
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.3);
+        }
+        
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: 12px;
+        }
+        
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            border: 1px solid #f3f4f6;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+            border-color: #e5e7eb;
+        }
+        
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .stat-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -1px;
+        }
+        
+        .stat-change {
+            font-size: 12px;
+            font-weight: 700;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .stat-change.positive {
+            color: #10b981;
+        }
+        
+        .stat-change.negative {
+            color: #ef4444;
+        }
+        
+        .stat-change.neutral {
+            color: #6b7280;
+        }
+        
+        /* Login Card */
+        .login-wrapper {
+            max-width: 520px;
+            margin: 100px auto;
+            animation: fadeIn 0.6s ease-out;
+        }
+        
+        .login-card {
+            background: white;
+            border-radius: 24px;
+            padding: 56px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+            border: 1px solid #f3f4f6;
+        }
+        
+        .login-card h2 {
+            font-size: 32px;
+            font-weight: 900;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+        
+        .login-subtitle {
+            color: #6b7280;
+            font-size: 15px;
+            margin-bottom: 36px;
+            font-weight: 500;
+        }
+        
+        .form-group {
+            margin-bottom: 24px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #374151;
+            font-size: 13px;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 14px 16px;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            color: #1f2937;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-group small {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #9ca3af;
+            font-weight: 500;
+        }
+        
+        /* Bot Controls */
+        .bot-controls-section {
+            display: none;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            border: 1px solid #f3f4f6;
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .bot-controls-section h3 {
+            font-size: 22px;
+            font-weight: 900;
+            color: #1a1d23;
+            margin-bottom: 28px;
+            letter-spacing: -0.5px;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%);
+            border: 1px solid #dbeafe;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 800;
+        }
+        
+        .info-box p {
+            color: #64748b;
+            font-size: 13px;
+            margin-bottom: 8px;
+            line-height: 1.7;
+            font-weight: 500;
+        }
+        
+        .info-box ul {
+            color: #64748b;
+            font-size: 13px;
+            margin-left: 20px;
+            line-height: 1.9;
+            font-weight: 500;
+        }
+        
+        /* Logs Section */
+        .logs-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            border: 1px solid #f3f4f6;
+        }
+        
+        .logs-section h3 {
+            font-size: 22px;
+            font-weight: 900;
+            color: #1a1d23;
+            margin-bottom: 24px;
+            letter-spacing: -0.5px;
+        }
+        
+        .logs-container {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 20px;
+            height: 500px;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+            font-size: 12px;
+            color: #10b981;
+            line-height: 1.7;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .logs-container::-webkit-scrollbar {
+            width: 10px;
+        }
+        
+        .logs-container::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 5px;
+        }
+        
+        .logs-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 5px;
+        }
+        
+        .logs-container::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(180deg, #7c8fef 0%, #8b5bb0 100%);
+        }
+        
+        .status-display {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #6b7280;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+        }
+        
+        .success {
+            color: #10b981;
+            font-weight: 700;
+        }
+        
+        .error {
+            color: #ef4444;
+            font-weight: 700;
+        }
+        
+        .warning {
+            color: #f59e0b;
+            font-weight: 700;
+        }
+        
+        .info {
+            color: #3b82f6;
+            font-weight: 700;
+        }
+        
+        .dashboard-content {
+            display: none;
+        }
+        
+        .daily-limit-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+            border: 1px solid #f3f4f6;
+            margin-bottom: 24px;
+        }
+        
+        .limit-progress {
+            width: 100%;
+            height: 10px;
+            background: #f3f4f6;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        
+        .limit-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #667eea 100%);
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+        
+        .limit-progress-bar.warning {
+            background: linear-gradient(90deg, #f59e0b 0%, #ef4444 100%);
+        }
+        
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: white;
+            font-size: 14px;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 200px;
+            }
+            
+            .main-content {
+                margin-left: 200px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="logo">
+                <div class="logo-icon">L</div>
+                <div class="logo-text">Lumina<span>Flow</span></div>
+            </a>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-label">Core</div>
+            <div class="nav-item active" onclick="showOverview()">
+                <span class="nav-icon">◉</span>
+                <span>Overview</span>
+            </div>
+            <div class="nav-item" onclick="showLeads()">
+                <span class="nav-icon">◈</span>
+                <span>Leads</span>
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-label">Automation</div>
+            <div class="nav-item" onclick="selectBot('linkedin')">
+                <span class="nav-icon">◐</span>
+                <span>LinkedIn Bot</span>
+            </div>
+            <div class="nav-item" onclick="selectBot('whatsapp')">
+                <span class="nav-icon">◆</span>
+                <span>WhatsApp Bot</span>
+            </div>
+            <div class="nav-item" onclick="selectBot('leads')">
+                <span class="nav-icon">◎</span>
+                <span>Lead Generation</span>
+            </div>
+        </div>
+        
+        <div class="nav-section">
+            <div class="nav-label">Support</div>
+            <div class="nav-item" onclick="showHelp()">
+                <span class="nav-icon">◕</span>
+                <span>Help & Docs</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+        <!-- Login Section -->
+        <div class="login-wrapper" id="loginSection">
+            <div class="login-card">
+                <h2>Welcome Back</h2>
+                <p class="login-subtitle">Sign in to access your dashboard</p>
+                <div class="form-group">
+                    <label>Email / Unique ID</label>
+                    <input type="text" id="uniqueId" placeholder="your@email.com">
+                    <small>Your unique identifier for this session</small>
+                </div>
+                <div class="form-group">
+                    <label>Secret Key</label>
+                    <input type="password" id="secretKey" placeholder="Enter your secret key">
+                    <small>Keep this secure and never share it</small>
+                </div>
+                <button class="btn btn-primary" onclick="verifySession()" style="width: 100%; justify-content: center;">
+                    Access Dashboard
+                </button>
+                <div id="loginStatus" style="margin-top: 16px;"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-content" id="dashboardContent">
+            <!-- Top Bar -->
+            <div class="topbar">
+                <div class="page-header">
+                    <div class="breadcrumb">OVERVIEW / PERFORMANCE</div>
+                    <h1 class="page-title">Dashboard</h1>
+                    <p class="page-subtitle">Real-time pulse of your outreach machine.</p>
+                </div>
+                <div class="topbar-actions">
+                    <div class="status-badge">
+                        <span class="status-dot"></span>
+                        <span>Active</span>
+                    </div>
+                    <div class="user-info">
+                        <div class="user-avatar" id="userAvatar">U</div>
+                        <span class="user-email" id="userEmail"></span>
+                    </div>
+                    <button class="btn btn-danger btn-sm" id="logoutBtn" style="display: none;" onclick="logout()">
+                        Logout
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card animate-fade-in">
+                    <div class="stat-label">Total Leads</div>
+                    <div class="stat-value" id="totalLeads">0</div>
+                    <div class="stat-change neutral" id="leadsChange">Loading...</div>
+                </div>
+                <div class="stat-card animate-fade-in" style="animation-delay: 0.1s;">
+                    <div class="stat-label">Response Rate</div>
+                    <div class="stat-value" id="responseRate">0%</div>
+                    <div class="stat-change neutral" id="responseChange">Loading...</div>
+                </div>
+                <div class="stat-card animate-fade-in" style="animation-delay: 0.2s;">
+                    <div class="stat-label">Active Bots</div>
+                    <div class="stat-value" id="activeBots">0</div>
+                    <div class="stat-change neutral" id="botsChange">Ready</div>
+                </div>
+                <div class="stat-card animate-fade-in" style="animation-delay: 0.3s;">
+                    <div class="stat-label">Opportunities</div>
+                    <div class="stat-value" id="opportunities">0</div>
+                    <div class="stat-change neutral" id="oppChange">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Daily Limits Section -->
+            <div class="daily-limit-card" id="dailyLimitsSection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h4 style="font-size: 16px; font-weight: 800; color: #1a1d23; margin-bottom: 4px;">Daily Connection Limit</h4>
+                        <p style="font-size: 13px; color: #6b7280; font-weight: 500;">LinkedIn safety limit: 150 connections per day</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 28px; font-weight: 900; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;" id="dailyCount">0</div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">/ 150 today</div>
+                    </div>
+                </div>
+                <div class="limit-progress">
+                    <div class="limit-progress-bar" id="limitProgressBar" style="width: 0%;"></div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #f3f4f6;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Messages Sent</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #667eea;" id="messagesSent">0</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Remaining</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #10b981;" id="remainingLimit">150</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Resets In</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #6b7280;" id="resetTime">24h</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daily Limits Section -->
+            <div class="daily-limit-card" id="dailyLimitsSection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <div>
+                        <h4 style="font-size: 16px; font-weight: 800; color: #1a1d23; margin-bottom: 4px;">Daily Connection Limit</h4>
+                        <p style="font-size: 13px; color: #6b7280; font-weight: 500;">LinkedIn safety limit: 150 connections per day</p>
+                    </div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 28px; font-weight: 900; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;" id="dailyCount">0</div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">/ 150 today</div>
+                    </div>
+                </div>
+                <div class="limit-progress">
+                    <div class="limit-progress-bar" id="limitProgressBar" style="width: 0%;"></div>
+                </div>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; padding-top: 20px; border-top: 1px solid #f3f4f6;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Messages Sent</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #667eea;" id="messagesSent">0</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Remaining</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #10b981;" id="remainingLimit">150</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">Resets In</div>
+                        <div style="font-size: 20px; font-weight: 800; color: #6b7280;" id="resetTime">24h</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Section -->
+            <div class="bot-controls-section" id="analyticsSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
+                    <h3 style="margin-bottom: 0;">Analytics Dashboard</h3>
+                    <button class="btn btn-secondary btn-sm">Export PDF</button>
+                </div>
+
+                <!-- Performance Metrics -->
+                <div class="stats-grid" style="margin-bottom: 32px;">
+                    <div class="stat-card">
+                        <div class="stat-label">LinkedIn ROI</div>
+                        <div class="stat-value" id="linkedinROI">$0</div>
+                        <div class="stat-change neutral">Calculating...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Email ROI</div>
+                        <div class="stat-value" id="emailROI">$0</div>
+                        <div class="stat-change neutral">Calculating...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Agent Savings</div>
+                        <div class="stat-value" id="agentSavings">0 hrs</div>
+                        <div class="stat-change neutral">Tracking...</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Cost per Opp</div>
+                        <div class="stat-value" id="costPerOpp">$0</div>
+                        <div class="stat-change neutral">Calculating...</div>
+                    </div>
+                </div>
+
+                <!-- Growth Chart -->
+                <div style="background: white; border-radius: 16px; padding: 32px; border: 1px solid #f3f4f6; margin-bottom: 24px;">
+                    <h4 style="font-size: 18px; font-weight: 800; margin-bottom: 20px; color: #1a1d23;">Weekly Growth Funnel</h4>
+                    <canvas id="growthChart" height="80"></canvas>
+                </div>
+
+                <!-- Efficiency Stack -->
+                <div style="background: white; border-radius: 16px; padding: 32px; border: 1px solid #f3f4f6;">
+                    <h4 style="font-size: 18px; font-weight: 800; margin-bottom: 20px; color: #1a1d23;">Efficiency Metrics</h4>
+                    <div style="display: grid; gap: 16px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; font-weight: 600; color: #6b7280;">SENT</span>
+                            <span style="font-size: 18px; font-weight: 800; color: #667eea;" id="metricSent">0</span>
+                        </div>
+                        <div style="background: linear-gradient(90deg, #667eea 0%, #667eea 75%, #e5e7eb 75%); height: 8px; border-radius: 4px;"></div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; font-weight: 600; color: #6b7280;">OPENED</span>
+                            <span style="font-size: 18px; font-weight: 800; color: #667eea;" id="metricOpened">0</span>
+                        </div>
+                        <div style="background: linear-gradient(90deg, #667eea 0%, #667eea 60%, #e5e7eb 60%); height: 8px; border-radius: 4px;"></div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; font-weight: 600; color: #6b7280;">REPLIED</span>
+                            <span style="font-size: 18px; font-weight: 800; color: #10b981;" id="metricReplied">0</span>
+                        </div>
+                        <div style="background: linear-gradient(90deg, #10b981 0%, #10b981 25%, #e5e7eb 25%); height: 8px; border-radius: 4px;"></div>
+                        
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 13px; font-weight: 600; color: #6b7280;">MEETINGS</span>
+                            <span style="font-size: 18px; font-weight: 800; color: #10b981;" id="metricMeetings">0</span>
+                        </div>
+                        <div style="background: linear-gradient(90deg, #10b981 0%, #10b981 10%, #e5e7eb 10%); height: 8px; border-radius: 4px;"></div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; padding-top: 24px; border-top: 1px solid #f3f4f6;">
+                        <div style="text-align: center;">
+                            <div style="font-size: 32px; font-weight: 900; color: #667eea;" id="avgCTR">0%</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px;">AVG CTR</div>
+                        </div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 32px; font-weight: 900; color: #10b981;" id="replyRate">0%</div>
+                            <div style="font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 4px;">REPLY RATE</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leads Dashboard Section -->
+            <div class="bot-controls-section" id="leadsSection" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px;">
+                    <h3 style="margin-bottom: 0;">Leads Dashboard</h3>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <select id="leadFileSelector" onchange="loadSelectedLeadFile()" style="padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 600; background: white; cursor: pointer;">
+                            <option value="">Latest Report</option>
+                        </select>
+                        <button class="btn btn-secondary btn-sm" onclick="refreshLeads()">Refresh</button>
+                        <button class="btn btn-primary btn-sm" onclick="downloadLeadsExcel()">Export to Excel</button>
+                    </div>
+                </div>
+
+                <!-- Leads Stats -->
+                <div class="stats-grid" style="margin-bottom: 32px;">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Leads</div>
+                        <div class="stat-value" id="leadsTotal">0</div>
+                        <div class="stat-change neutral" id="leadsTotalChange">No data</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">High Priority</div>
+                        <div class="stat-value" id="leadsHigh">0</div>
+                        <div class="stat-change neutral">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Medium Priority</div>
+                        <div class="stat-value" id="leadsMedium">0</div>
+                        <div class="stat-change neutral">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Low Priority</div>
+                        <div class="stat-value" id="leadsLow">0</div>
+                        <div class="stat-change neutral">0%</div>
+                    </div>
+                </div>
+
+                <!-- Leads Over Time Graph -->
+                <div style="background: white; border-radius: 16px; padding: 32px; border: 1px solid #f3f4f6; margin-bottom: 24px;">
+                    <h4 style="font-size: 18px; font-weight: 800; margin-bottom: 20px; color: #1a1d23;">Leads Over Time</h4>
+                    <canvas id="leadsTimeChart" height="80"></canvas>
+                </div>
+
+                <!-- Leads Table -->
+                <div style="background: white; border-radius: 16px; padding: 32px; border: 1px solid #f3f4f6;">
+                    <h4 style="font-size: 18px; font-weight: 800; margin-bottom: 20px; color: #1a1d23;">Lead Details</h4>
+                    <div id="leadsTableContainer" style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 2px solid #f3f4f6;">
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Name</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Title</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Company</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Location</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Email</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Phone</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Score</th>
+                                    <th style="text-align: left; padding: 12px; font-size: 11px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px;">Priority</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leadsTableBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af; font-size: 14px;">No leads found. Start lead generation to see results.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LinkedIn Bot Controls -->
+            <div class="bot-controls-section" id="linkedinControls">
+                <h3>LinkedIn Bot Configuration</h3>
+                
+                <div class="info-box">
+                    <h4>Setup Instructions</h4>
+                    <p>Before starting the LinkedIn bot, you need to create a session:</p>
+                    <ul>
+                        <li>Upload an existing LinkedIn session file (JSON format)</li>
+                        <li>OR create a new session using manual login</li>
+                        <li>Configure your bot personality and portfolio link</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label>Upload LinkedIn Session File</label>
+                    <input type="file" id="sessionFileInput" accept=".json">
+                    <small>Upload your LinkedIn session JSON file</small>
+                </div>
+                <button class="btn btn-primary" onclick="uploadSessionFile()">
+                    Upload Session
+                </button>
+                <button class="btn btn-secondary" onclick="createLinkedInSession()">
+                    Create New Session
+                </button>
+                <button class="btn btn-secondary" onclick="checkSessionStatus()">
+                    Check Session Status
+                </button>
+
+                <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e7eb;">
+
+                <div class="form-group">
+                    <label>Bot Personality</label>
+                    <textarea id="linkedinPersonality" rows="4" placeholder="You are Nithin responding to LinkedIn messages. Be professional yet friendly, and authentic. Keep responses casual and under 30 words.">You are a professional LinkedIn automation assistant. Be friendly, helpful, and authentic. Keep responses concise and under 30 words.</textarea>
+                    <small>Define how your bot should respond to messages</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Portfolio Link</label>
+                    <input type="url" id="linkedinPortfolio" placeholder="https://your-portfolio.com">
+                    <small>Optional portfolio or website link to share</small>
+                </div>
+
+                <div class="form-group">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="linkedinTestMode">
+                        Test Mode (1 message only)
+                    </label>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button class="btn btn-primary" onclick="startLinkedInBot()">
+                        Start LinkedIn Bot
+                    </button>
+                    <button class="btn btn-danger" onclick="stopBot('linkedin')">
+                        Stop Bot
+                    </button>
+                </div>
+            </div>
+
+            <!-- WhatsApp Bot Controls -->
+            <div class="bot-controls-section" id="whatsappControls">
+                <h3>WhatsApp Bot Configuration</h3>
+                
+                <div class="info-box">
+                    <h4>WhatsApp Bot Features</h4>
+                    <p>Automate your WhatsApp messaging with smart filters and bulk capabilities:</p>
+                    <ul>
+                        <li>Send to all contacts or specific ones</li>
+                        <li>Exclude certain contacts from automation</li>
+                        <li>Bulk message sending from CSV/Excel files</li>
+                        <li>AI-powered personality customization</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label>Bot Personality</label>
+                    <textarea id="whatsappPersonality" rows="4" placeholder="Define your WhatsApp bot personality...">You are a friendly WhatsApp assistant. Be helpful and conversational.</textarea>
+                    <small>How should your bot respond to messages?</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Contacts to Message</label>
+                    <textarea id="whatsappContacts" rows="3" placeholder="ALL or comma-separated: John, Jane, Bob">ALL</textarea>
+                    <small>Use "ALL" for all contacts or list specific names</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Exclude Contacts</label>
+                    <textarea id="whatsappExclude" rows="2" placeholder="Comma-separated: Spam, Bot, Test"></textarea>
+                    <small>Optional: Contacts to exclude from messaging</small>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button class="btn btn-primary" onclick="startWhatsAppBot()">
+                        Start WhatsApp Bot
+                    </button>
+                    <button class="btn btn-danger" onclick="stopBot('whatsapp')">
+                        Stop Bot
+                    </button>
+                </div>
+
+                <hr style="margin: 32px 0; border: none; border-top: 1px solid #e5e7eb;">
+
+                <h3 style="margin-bottom: 20px;">Bulk WhatsApp Messages</h3>
+                
+                <div class="form-group">
+                    <label>Upload CSV/Excel File</label>
+                    <input type="file" id="bulkFile" accept=".csv,.xlsx,.xls">
+                    <small>File should contain columns: name, phone, message</small>
+                </div>
+
+                <button class="btn btn-primary" onclick="sendBulkWhatsAppMessages()">
+                    Send Bulk Messages
+                </button>
+            </div>
+
+            <!-- Lead Generation Controls -->
+            <div class="bot-controls-section" id="leadsControls">
+                <h3>Lead Generation Configuration</h3>
+                
+                <div class="info-box">
+                    <h4>Lead Generation Process</h4>
+                    <p>Generate qualified leads from LinkedIn based on your criteria:</p>
+                    <ul>
+                        <li>Define search keywords for your target audience</li>
+                        <li>Specify location preferences</li>
+                        <li>Set maximum number of leads to generate</li>
+                        <li>Download results as JSON report</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label>Search Keywords</label>
+                    <input type="text" id="leadKeywords" placeholder="software engineer, developer, CTO" value="software development, web development, mobile app">
+                    <small>Comma-separated keywords for your target leads</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" id="leadLocation" placeholder="San Francisco, CA" value="San Francisco">
+                    <small>Geographic location to search for leads</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Maximum Leads</label>
+                    <input type="number" id="maxLeads" placeholder="50" value="50" min="1" max="1000">
+                    <small>Number of leads to generate (1-1000)</small>
+                </div>
+
+                <div style="margin-top: 24px;">
+                    <button class="btn btn-primary" onclick="startLeadGeneration()">
+                        Start Lead Generation
+                    </button>
+                    <button class="btn btn-danger" onclick="stopBot('leads')">
+                        Stop Generation
+                    </button>
+                    <button class="btn btn-secondary" onclick="downloadLeads()">
+                        Download Leads Report
+                    </button>
+                </div>
+            </div>
+
+            <!-- Help & Documentation Section -->
+            <div class="bot-controls-section" id="helpSection" style="display: none;">
+                <h3>Help & Documentation</h3>
+                
+                <div class="info-box" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-color: #bae6fd;">
+                    <h4 style="color: #0369a1;">📚 Getting Started</h4>
+                    <p>Welcome to LuminaFlow! This platform helps you automate your LinkedIn outreach, WhatsApp messaging, and lead generation.</p>
+                </div>
+
+                <div style="display: grid; gap: 20px; margin-top: 24px;">
+                    <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #f3f4f6;">
+                        <h4 style="font-size: 16px; font-weight: 800; color: #1a1d23; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #667eea;">◐</span> LinkedIn Bot
+                        </h4>
+                        <ul style="color: #6b7280; font-size: 13px; line-height: 1.9; margin-left: 20px;">
+                            <li>Upload your LinkedIn session file or create a new session</li>
+                            <li>Configure your personality and portfolio link</li>
+                            <li>Daily limit: 150 connections per day for safety</li>
+                            <li>Use test mode to verify functionality before going live</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #f3f4f6;">
+                        <h4 style="font-size: 16px; font-weight: 800; color: #1a1d23; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #667eea;">◆</span> WhatsApp Bot
+                        </h4>
+                        <ul style="color: #6b7280; font-size: 13px; line-height: 1.9; margin-left: 20px;">
+                            <li>Set your AI personality for conversations</li>
+                            <li>Specify contacts to message (comma-separated)</li>
+                            <li>Exclude specific contacts from automation</li>
+                            <li>Upload bulk message files for mass outreach</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #f3f4f6;">
+                        <h4 style="font-size: 16px; font-weight: 800; color: #1a1d23; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #667eea;">◎</span> Lead Generation
+                        </h4>
+                        <ul style="color: #6b7280; font-size: 13px; line-height: 1.9; margin-left: 20px;">
+                            <li>Enter keywords to find relevant leads</li>
+                            <li>Specify location for targeted searches</li>
+                            <li>Set maximum number of leads to generate</li>
+                            <li>View and export leads with detailed information</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: white; border-radius: 12px; padding: 24px; border: 1px solid #f3f4f6;">
+                        <h4 style="font-size: 16px; font-weight: 800; color: #1a1d23; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <span style="color: #10b981;">✓</span> Best Practices
+                        </h4>
+                        <ul style="color: #6b7280; font-size: 13px; line-height: 1.9; margin-left: 20px;">
+                            <li>Always respect LinkedIn's daily connection limits</li>
+                            <li>Test bots in test mode before full deployment</li>
+                            <li>Monitor logs regularly for any issues</li>
+                            <li>Keep your session files secure and backed up</li>
+                            <li>Download lead reports regularly for your records</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 24px; border: 1px solid #fbbf24;">
+                        <h4 style="font-size: 16px; font-weight: 800; color: #92400e; margin-bottom: 12px;">⚠️ Important Notes</h4>
+                        <ul style="color: #78350f; font-size: 13px; line-height: 1.9; margin-left: 20px; font-weight: 600;">
+                            <li>Keep your account credentials secure</li>
+                            <li>Don't exceed LinkedIn's daily limits to avoid restrictions</li>
+                            <li>Use professional and respectful messaging</li>
+                            <li>Comply with all platform terms of service</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Display -->
+            <div class="status-display" id="statusDisplay" style="display: none;">
+                <strong>Status:</strong> <span id="statusText">Ready</span>
+            </div>
+
+            <!-- Logs Section -->
+            <div class="logs-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h3>Activity Logs</h3>
+                    <div>
+                        <button class="btn btn-secondary" onclick="refreshLogs()">
+                            Refresh Logs
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearLogs()">
+                            Clear Logs
+                        </button>
+                    </div>
+                </div>
+                <div class="logs-container" id="logsContainer">
+                    <div style="color: #6b7280; text-align: center; padding: 40px;">
+                        No logs available. Start a bot to see activity.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let currentUniqueId = null;
+        let currentSecretKey = null;
+        let selectedBot = null;
+        let autoRefreshInterval = null;
+        
+        // API Configuration
+        const API_BASE = window.location.origin;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            checkExistingSession();
+        });
+
+        // Check if user is already logged in
+        function checkExistingSession() {
+            const savedId = localStorage.getItem('uniqueId');
+            const savedKey = localStorage.getItem('secretKey');
+            
+            // Don't auto-fill for security - production ready
+            // if (savedId && savedKey) {
+            //     document.getElementById('uniqueId').value = savedId;
+            //     document.getElementById('secretKey').value = savedKey;
+            // }
+        }
+
+        // Verify session
+        async function verifySession() {
+            const uniqueId = document.getElementById('uniqueId').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+
+            if (!uniqueId || !secretKey) {
+                updateLoginStatus('Please enter both email and secret key', 'error');
+                return;
+            }
+
+            updateLoginStatus('Verifying credentials...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/verify-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uniqueId, secretKey })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentUniqueId = uniqueId;
+                    currentSecretKey = secretKey;
+                    
+                    // Save to localStorage
+                    localStorage.setItem('uniqueId', uniqueId);
+                    localStorage.setItem('secretKey', secretKey);
+                    
+                    showDashboard();
+                } else {
+                    updateLoginStatus('Invalid credentials. Please check your email and secret key.', 'error');
+                }
+            } catch (error) {
+                updateLoginStatus('Connection error. Please try again.', 'error');
+                console.error('Verification error:', error);
+            }
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('dashboardContent').style.display = 'block';
+            document.getElementById('logoutBtn').style.display = 'block';
+            document.getElementById('userEmail').textContent = currentUniqueId;
+            
+            // Set user avatar initial
+            const initial = currentUniqueId.charAt(0).toUpperCase();
+            document.getElementById('userAvatar').textContent = initial;
+            
+            // Load initial data
+            loadDashboardStats();
+            updateDailyLimits();
+            startAutoRefresh();
+            refreshBotStatuses();
+        }
+
+        // Navigation functions
+        function showOverview() {
+            updateNavigation('Overview');
+            document.querySelectorAll('.bot-controls-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById('statsGrid').style.display = 'grid';
+            document.getElementById('dailyLimitsSection').style.display = 'block';
+            document.getElementById('botLogsSection').style.display = 'none';
+            loadDashboardStats();
+            updateDailyLimits();
+        }
+
+
+
+        function showLeads() {
+            updateNavigation('Leads');
+            document.querySelectorAll('.bot-controls-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById('leadsSection').style.display = 'block';
+            document.getElementById('statsGrid').style.display = 'none';
+            document.getElementById('dailyLimitsSection').style.display = 'none';
+            document.getElementById('botLogsSection').style.display = 'none';
+            refreshLeads();
+        }
+
+        function showHelp() {
+            updateNavigation('Help & Docs');
+            document.querySelectorAll('.bot-controls-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById('helpSection').style.display = 'block';
+            document.getElementById('statsGrid').style.display = 'none';
+            document.getElementById('dailyLimitsSection').style.display = 'none';
+            document.getElementById('botLogsSection').style.display = 'none';
+        }
+
+        function updateNavigation(active) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.textContent.trim() === active) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // Update daily limits
+        function updateDailyLimits() {
+            // Simulate daily limits (in production, this would come from the server)
+            const now = new Date();
+            const messagesSent = Math.floor(Math.random() * 75); // Simulated for now
+            const dailyLimit = 150;
+            const remaining = dailyLimit - messagesSent;
+            const percentage = (messagesSent / dailyLimit) * 100;
+            
+            // Calculate reset time (midnight tonight)
+            const tomorrow = new Date(now);
+            tomorrow.setHours(24, 0, 0, 0);
+            const hoursUntilReset = Math.floor((tomorrow - now) / (1000 * 60 * 60));
+            
+            // Update UI
+            document.getElementById('dailyCount').textContent = messagesSent;
+            document.getElementById('messagesSent').textContent = messagesSent;
+            document.getElementById('remainingLimit').textContent = remaining;
+            document.getElementById('resetTime').textContent = hoursUntilReset + 'h';
+            
+            // Update progress bar
+            const progressBar = document.getElementById('limitProgressBar');
+            progressBar.style.width = percentage + '%';
+            
+            // Change color if approaching limit
+            if (percentage > 80) {
+                progressBar.classList.add('warning');
+            } else {
+                progressBar.classList.remove('warning');
+            }
+        }
+
+        // Load dashboard statistics
+        async function loadDashboardStats() {
+            if (!currentUniqueId) return;
+
+            try {
+                // Fetch real data from server
+                const response = await fetch(`${API_BASE}/get-leads/${currentUniqueId}`);
+                const data = await response.json();
+
+                if (data.success && data.leads) {
+                    const totalLeads = data.leads.totalLeads || 0;
+                    const highPriority = data.leads.highPriorityLeads || 0;
+                    
+                    document.getElementById('totalLeads').textContent = totalLeads;
+                    document.getElementById('opportunities').textContent = highPriority;
+                    
+                    // Calculate response rate (example)
+                    const responseRate = totalLeads > 0 ? Math.round((highPriority / totalLeads) * 100) : 0;
+                    document.getElementById('responseRate').textContent = responseRate + '%';
+                    
+                    // Update changes
+                    document.getElementById('leadsChange').textContent = totalLeads > 0 ? `${totalLeads} total` : 'No leads yet';
+                    document.getElementById('leadsChange').className = totalLeads > 0 ? 'stat-change positive' : 'stat-change neutral';
+                }
+
+                // Count active bots
+                let activeBotCount = 0;
+                
+                try {
+                    const linkedinResponse = await fetch(`${API_BASE}/bot-status/${currentUniqueId}/linkedin`);
+                    const linkedinStatus = await linkedinResponse.json();
+                    if (linkedinStatus.running) activeBotCount++;
+                } catch (e) {}
+                
+                try {
+                    const whatsappResponse = await fetch(`${API_BASE}/bot-status/${currentUniqueId}/whatsapp`);
+                    const whatsappStatus = await whatsappResponse.json();
+                    if (whatsappStatus.running) activeBotCount++;
+                } catch (e) {}
+                
+                try {
+                    const leadsResponse = await fetch(`${API_BASE}/bot-status/${currentUniqueId}/leads`);
+                    const leadsStatus = await leadsResponse.json();
+                    if (leadsStatus.running) activeBotCount++;
+                } catch (e) {}
+
+                document.getElementById('activeBots').textContent = activeBotCount;
+                document.getElementById('botsChange').textContent = activeBotCount > 0 ? 'Running' : 'Ready';
+                document.getElementById('botsChange').className = activeBotCount > 0 ? 'stat-change positive' : 'stat-change neutral';
+
+            } catch (error) {
+                console.error('Error loading dashboard stats:', error);
+            }
+        }
+
+        // Load analytics data
+        async function loadAnalyticsData() {
+            if (!currentUniqueId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/get-leads/${currentUniqueId}`);
+                const data = await response.json();
+
+                if (data.success && data.leads) {
+                    const total = data.leads.totalLeads || 0;
+                    const high = data.leads.highPriorityLeads || 0;
+                    const medium = data.leads.mediumPriorityLeads || 0;
+                    
+                    // Update metrics
+                    document.getElementById('metricSent').textContent = total * 3; // Estimate
+                    document.getElementById('metricOpened').textContent = total * 2; // Estimate
+                    document.getElementById('metricReplied').textContent = total;
+                    document.getElementById('metricMeetings').textContent = high;
+                    
+                    // Calculate rates
+                    const ctr = total > 0 ? ((total * 2) / (total * 3) * 100).toFixed(1) : 0;
+                    const replyRate = total > 0 ? ((total / (total * 2)) * 100).toFixed(1) : 0;
+                    
+                    document.getElementById('avgCTR').textContent = ctr + '%';
+                    document.getElementById('replyRate').textContent = replyRate + '%';
+                    
+                    // ROI calculations (example)
+                    document.getElementById('linkedinROI').textContent = '$' + (high * 300).toLocaleString();
+                    document.getElementById('emailROI').textContent = '$' + (medium * 150).toLocaleString();
+                    document.getElementById('agentSavings').textContent = (total * 0.5).toFixed(0) + ' hrs';
+                    document.getElementById('costPerOpp').textContent = high > 0 ? '$' + Math.round(1000 / high) : '$0';
+                }
+
+                // Initialize growth chart if not already done
+                if (!window.growthChartInitialized) {
+                    initializeGrowthChart();
+                    window.growthChartInitialized = true;
+                }
+
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        // Initialize growth chart
+        function initializeGrowthChart() {
+            const ctx = document.getElementById('growthChart');
+            if (!ctx) return;
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                    datasets: [{
+                        label: 'Outreach',
+                        data: [450, 580, 620, 1050],
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: 'Conversions',
+                        data: [150, 280, 380, 520],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Refresh leads
+        async function refreshLeads() {
+            if (!currentUniqueId) return;
+
+            try {
+                // Load available lead files
+                const filesResponse = await fetch(`${API_BASE}/get-lead-files/${currentUniqueId}`);
+                const filesData = await filesResponse.json();
+
+                let filesForGraph = [];
+                
+                if (filesData.success && filesData.files && filesData.files.length > 0) {
+                    // Populate file selector
+                    const selector = document.getElementById('leadFileSelector');
+                    selector.innerHTML = '<option value="">Latest Report</option>';
+                    
+                    filesData.files.forEach(file => {
+                        const date = new Date(file.date);
+                        const option = document.createElement('option');
+                        option.value = file.name;
+                        option.textContent = `${date.toLocaleString()} - ${file.totalLeads || 0} leads`;
+                        selector.appendChild(option);
+                    });
+
+                    filesForGraph = filesData.files;
+                } else {
+                    // Create dummy data if no files exist yet
+                    filesForGraph = [
+                        {
+                            date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                            totalLeads: 15,
+                            highPriority: 5,
+                            mediumPriority: 7,
+                            lowPriority: 3
+                        },
+                        {
+                            date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                            totalLeads: 28,
+                            highPriority: 12,
+                            mediumPriority: 10,
+                            lowPriority: 6
+                        },
+                        {
+                            date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+                            totalLeads: 42,
+                            highPriority: 18,
+                            mediumPriority: 15,
+                            lowPriority: 9
+                        },
+                        {
+                            date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+                            totalLeads: 58,
+                            highPriority: 24,
+                            mediumPriority: 22,
+                            lowPriority: 12
+                        },
+                        {
+                            date: new Date().toISOString(),
+                            totalLeads: 75,
+                            highPriority: 32,
+                            mediumPriority: 28,
+                            lowPriority: 15
+                        }
+                    ];
+                }
+
+                // Update graph with historical data
+                updateLeadsTimeGraph(filesForGraph);
+
+                // Load latest leads data
+                const response = await fetch(`${API_BASE}/get-leads/${currentUniqueId}`);
+                const data = await response.json();
+
+                if (data.success && data.report) {
+                    const leadsData = data.report;
+                    const summary = leadsData.summary || {};
+                    
+                    // Update stats
+                    const totalLeads = summary.totalLeads || 0;
+                    const highPriority = summary.highPriorityLeads || 0;
+                    const mediumPriority = summary.mediumPriorityLeads || 0;
+                    const lowPriority = summary.lowPriorityLeads || 0;
+                    
+                    document.getElementById('leadsTotal').textContent = totalLeads;
+                    document.getElementById('leadsHigh').textContent = highPriority;
+                    document.getElementById('leadsMedium').textContent = mediumPriority;
+                    document.getElementById('leadsLow').textContent = lowPriority;
+                    
+                    document.getElementById('leadsTotalChange').textContent = totalLeads > 0 ? `Generated ${new Date(leadsData.generatedAt).toLocaleDateString()}` : 'No data';
+                    document.getElementById('leadsTotalChange').className = totalLeads > 0 ? 'stat-change positive' : 'stat-change neutral';
+                    
+                    // Update table
+                    const tbody = document.getElementById('leadsTableBody');
+                    if (leadsData.leads && leadsData.leads.length > 0) {
+                        tbody.innerHTML = leadsData.leads.map(lead => {
+                            const nameDisplay = lead.profileUrl 
+                                ? `<a href="${lead.profileUrl}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600;">${lead.name || 'N/A'} ↗</a>`
+                                : (lead.name || 'N/A');
+                            
+                            return `
+                            <tr style="border-bottom: 1px solid #f3f4f6;">
+                                <td style="padding: 16px; font-size: 14px; font-weight: 600; color: #1a1d23;">${nameDisplay}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #6b7280;">${lead.title || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #6b7280;">${lead.company || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #6b7280;">${lead.location || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #667eea;">${lead.email || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; font-weight: 600; color: #10b981;">${lead.phone || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 14px; font-weight: 700; color: #667eea;">${lead.score || 0}</td>
+                                <td style="padding: 16px;">
+                                    <span style="padding: 4px 12px; background: ${getPriorityColor(getPriorityFromScore(lead.score))}; border-radius: 6px; font-size: 11px; font-weight: 700; color: white; text-transform: uppercase;">
+                                        ${getPriorityFromScore(lead.score)}
+                                    </span>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af; font-size: 14px;">No leads found. Start lead generation to see results.</td></tr>';
+                    }
+                } else {
+                    // Show message if no data
+                    document.getElementById('leadsTableBody').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af; font-size: 14px;">No leads data available. Start lead generation to collect data.</td></tr>';
+                }
+            } catch (error) {
+                console.error('Error loading leads:', error);
+                document.getElementById('leadsTableBody').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #ef4444;">Error loading leads data.</td></tr>';
+            }
+        }
+
+        // Load selected lead file
+        async function loadSelectedLeadFile() {
+            const selector = document.getElementById('leadFileSelector');
+            const fileName = selector.value;
+
+            if (!currentUniqueId) return;
+
+            try {
+                let response;
+                if (fileName) {
+                    response = await fetch(`${API_BASE}/get-lead-file/${currentUniqueId}/${fileName}`);
+                } else {
+                    response = await fetch(`${API_BASE}/get-leads/${currentUniqueId}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success && (data.report || data.leads)) {
+                    const leadsData = data.report || data.leads;
+                    const summary = leadsData.summary || leadsData;
+                    
+                    // Update stats
+                    document.getElementById('leadsTotal').textContent = summary.totalLeads || 0;
+                    document.getElementById('leadsHigh').textContent = summary.highPriorityLeads || 0;
+                    document.getElementById('leadsMedium').textContent = summary.mediumPriorityLeads || 0;
+                    document.getElementById('leadsLow').textContent = summary.lowPriorityLeads || 0;
+                    
+                    // Update table
+                    const tbody = document.getElementById('leadsTableBody');
+                    if (leadsData.leads && leadsData.leads.length > 0) {
+                        tbody.innerHTML = leadsData.leads.map(lead => {
+                            const nameDisplay = lead.profileUrl 
+                                ? `<a href="${lead.profileUrl}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600;">${lead.name || 'N/A'} ↗</a>`
+                                : (lead.name || 'N/A');
+                            
+                            return `
+                            <tr style="border-bottom: 1px solid #f3f4f6;">
+                                <td style="padding: 16px; font-size: 14px; font-weight: 600; color: #1a1d23;">${nameDisplay}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #6b7280;">${lead.title || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #6b7280;">${lead.company || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #6b7280;">${lead.location || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; color: #667eea;">${lead.email || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 13px; font-weight: 600; color: #10b981;">${lead.phone || 'N/A'}</td>
+                                <td style="padding: 16px; font-size: 14px; font-weight: 700; color: #667eea;">${lead.score || 0}</td>
+                                <td style="padding: 16px;">
+                                    <span style="padding: 4px 12px; background: ${getPriorityColor(getPriorityFromScore(lead.score))}; border-radius: 6px; font-size: 11px; font-weight: 700; color: white; text-transform: uppercase;">
+                                        ${getPriorityFromScore(lead.score)}
+                                    </span>
+                                </td>
+                            </tr>
+                            `;
+                        }).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #9ca3af; font-size: 14px;">No leads in this report.</td></tr>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading selected lead file:', error);
+                document.getElementById('leadsTableBody').innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #ef4444;">Error loading file.</td></tr>';
+            }
+        }
+
+        // Update leads over time graph
+        function updateLeadsTimeGraph(files) {
+            const ctx = document.getElementById('leadsTimeChart');
+            if (!ctx) return;
+
+            // Sort files by date
+            const sortedFiles = files.sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            const labels = sortedFiles.map(f => {
+                const date = new Date(f.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            });
+            
+            const totalLeads = sortedFiles.map(f => f.totalLeads || 0);
+            const highPriority = sortedFiles.map(f => f.highPriority || f.highPriorityLeads || 0);
+            const mediumPriority = sortedFiles.map(f => f.mediumPriority || f.mediumPriorityLeads || 0);
+            const lowPriority = sortedFiles.map(f => f.lowPriority || f.lowPriorityLeads || 0);
+
+            // Destroy existing chart if it exists
+            if (window.leadsTimeChart) {
+                window.leadsTimeChart.destroy();
+            }
+
+            window.leadsTimeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Total Leads',
+                        data: totalLeads,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 3
+                    }, {
+                        label: 'High Priority',
+                        data: highPriority,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    }, {
+                        label: 'Medium Priority',
+                        data: mediumPriority,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    }, {
+                        label: 'Low Priority',
+                        data: lowPriority,
+                        borderColor: '#6b7280',
+                        backgroundColor: 'rgba(107, 114, 128, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: {
+                                    size: 12,
+                                    weight: 600,
+                                    family: 'Inter'
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            cornerRadius: 8,
+                            titleFont: {
+                                size: 13,
+                                weight: 700
+                            },
+                            bodyFont: {
+                                size: 12
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                font: {
+                                    size: 11,
+                                    weight: 600
+                                },
+                                color: '#6b7280'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                font: {
+                                    size: 11,
+                                    weight: 600
+                                },
+                                color: '#6b7280'
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+
+        // Download leads as Excel
+        async function downloadLeadsExcel() {
+            if (!currentUniqueId) return;
+            
+            const selector = document.getElementById('leadFileSelector');
+            const fileName = selector.value;
+
+            try {
+                let url;
+                if (fileName) {
+                    url = `${API_BASE}/download-leads-excel/${currentUniqueId}/${fileName}`;
+                } else {
+                    url = `${API_BASE}/download-leads-excel/${currentUniqueId}`;
+                }
+                
+                window.location.href = url;
+                updateStatus('Downloading leads as Excel...', 'success');
+            } catch (error) {
+                updateStatus('Failed to download: ' + error.message, 'error');
+            }
+        }
+
+        function getPriorityFromScore(score) {
+            if (!score) return 'Low';
+            if (score >= 70) return 'High';
+            if (score >= 40) return 'Medium';
+            return 'Low';
+        }
+
+        function getPriorityColor(priority) {
+            switch(priority?.toLowerCase()) {
+                case 'high': return '#10b981';
+                case 'medium': return '#f59e0b';
+                case 'low': return '#6b7280';
+                default: return '#6b7280';
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('uniqueId');
+            localStorage.removeItem('secretKey');
+            currentUniqueId = null;
+            currentSecretKey = null;
+            
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('dashboardContent').style.display = 'none';
+            document.getElementById('logoutBtn').style.display = 'none';
+            document.getElementById('userEmail').textContent = '';
+            
+            stopAutoRefresh();
+        }
+
+        // Select bot
+        function selectBot(botType) {
+            // Remove active class from all nav items
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Add active to clicked item
+            event.target.closest('.nav-item').classList.add('active');
+
+            // Hide all controls and sections
+            document.querySelectorAll('.bot-controls-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Hide stats grid and daily limits
+            document.getElementById('statsGrid').style.display = 'none';
+            document.getElementById('dailyLimitsSection').style.display = 'none';
+
+            // Show selected bot controls and logs
+            document.getElementById(botType + 'Controls').style.display = 'block';
+            document.getElementById('botLogsSection').style.display = 'block';
+            selectedBot = botType;
+
+            // Refresh logs for this bot
+            refreshLogs();
+
+            // Scroll to controls
+            document.getElementById(botType + 'Controls').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Upload LinkedIn Session File
+        async function uploadSessionFile() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+            
+            const fileInput = document.getElementById('sessionFileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                updateStatus('Please select a file', 'error');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            
+            if (!file.name.endsWith('.json')) {
+                updateStatus('Please upload a JSON file', 'error');
+                return;
+            }
+            
+            updateStatus('Uploading session file...', 'info');
+            
+            try {
+                const formData = new FormData();
+                formData.append('sessionFile', file);
+                formData.append('uniqueId', currentUniqueId);
+                
+                const response = await fetch(`${API_BASE}/upload-session`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus('Session file uploaded successfully!', 'success');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Upload failed: ' + error.message, 'error');
+            }
+        }
+        
+        // Create LinkedIn Session
+        async function createLinkedInSession() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+            
+            updateStatus('Creating LinkedIn session...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/create-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uniqueId: currentUniqueId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateStatus(data.message, 'success');
+                    alert('A browser will open. Please log in to LinkedIn and wait for the session to be saved. This may take a few moments.');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to create session: ' + error.message, 'error');
+            }
+        }
+        
+        // Check Session Status
+        async function checkSessionStatus() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+            
+            updateStatus('Checking LinkedIn session status...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/session-status/${currentUniqueId}`);
+                const data = await response.json();
+                
+                if (data.exists) {
+                    let statusMessage = '';
+                    
+                    if (data.hasLinkedInSession) {
+                        statusMessage = 'LinkedIn session is active and ready!';
+                        
+                        if (data.sessionAge) {
+                            const ageHours = Math.round(data.sessionAge / (1000 * 60 * 60));
+                            statusMessage += ` Session age: ${ageHours} hours.`;
+                        }
+                        
+                        if (data.processes && data.processes.linkedinBot) {
+                            statusMessage += ' LinkedIn bot is currently running.';
+                        }
+                        
+                        updateStatus(statusMessage, 'success');
+                    } else {
+                        updateStatus('No LinkedIn session found. Please upload or create a session first.', 'warning');
+                    }
+                } else {
+                    updateStatus('No session directory found. Please create a session.', 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to check session: ' + error.message, 'error');
+            }
+        }
+
+        // Start LinkedIn Bot
+        async function startLinkedInBot() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+
+            const personality = document.getElementById('linkedinPersonality').value;
+            const portfolioLink = document.getElementById('linkedinPortfolio').value;
+            const testMode = document.getElementById('linkedinTestMode').checked;
+
+            updateStatus('Starting LinkedIn bot...', 'info');
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('uniqueId', currentUniqueId);
+                formData.append('personality', personality);
+                formData.append('portfolioLink', portfolioLink);
+                formData.append('testMode', testMode);
+
+                const response = await fetch(`${API_BASE}/start-linkedin`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus('LinkedIn bot started successfully!', 'success');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to start bot: ' + error.message, 'error');
+            }
+        }
+
+        // Start WhatsApp Bot
+        async function startWhatsAppBot() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+
+            const personality = document.getElementById('whatsappPersonality').value;
+            const contacts = document.getElementById('whatsappContacts').value;
+            const excludeContacts = document.getElementById('whatsappExclude').value;
+
+            updateStatus('Starting WhatsApp bot...', 'info');
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('uniqueId', currentUniqueId);
+                formData.append('personality', personality);
+                formData.append('contacts', contacts);
+                formData.append('excludeContacts', excludeContacts);
+
+                const response = await fetch(`${API_BASE}/start-whatsapp`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus('WhatsApp bot started successfully!', 'success');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to start bot: ' + error.message, 'error');
+            }
+        }
+
+        // Send Bulk WhatsApp Messages
+        async function sendBulkWhatsAppMessages() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+
+            const fileInput = document.getElementById('bulkFile');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                updateStatus('Please select a file', 'error');
+                return;
+            }
+
+            updateStatus('Sending bulk messages...', 'info');
+
+            try {
+                const formData = new FormData();
+                formData.append('bulkFile', fileInput.files[0]);
+                formData.append('uniqueId', currentUniqueId);
+
+                const response = await fetch(`${API_BASE}/bulk-whatsapp`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus('Bulk messages sent successfully!', 'success');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to send messages: ' + error.message, 'error');
+            }
+        }
+
+        // Start Lead Generation
+        async function startLeadGeneration() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+
+            const keywords = document.getElementById('leadKeywords').value;
+            const location = document.getElementById('leadLocation').value;
+            const maxLeads = document.getElementById('maxLeads').value;
+
+            updateStatus('Starting lead generation...', 'info');
+
+            try {
+                const formData = new URLSearchParams();
+                formData.append('uniqueId', currentUniqueId);
+                formData.append('keywords', keywords);
+                formData.append('location', location);
+                formData.append('maxLeads', maxLeads);
+
+                const response = await fetch(`${API_BASE}/start-leads`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus('Lead generation started successfully!', 'success');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to start lead generation: ' + error.message, 'error');
+            }
+        }
+
+        // Download Leads
+        async function downloadLeads() {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+
+            try {
+                window.open(`${API_BASE}/download-leads/${currentUniqueId}`, '_blank');
+                updateStatus('Downloading leads report...', 'success');
+            } catch (error) {
+                updateStatus('Failed to download leads: ' + error.message, 'error');
+            }
+        }
+
+        // Stop bot
+        async function stopBot(botType) {
+            if (!currentUniqueId) {
+                updateStatus('Please login first', 'error');
+                return;
+            }
+
+            updateStatus(`Stopping ${botType} bot...`, 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/stop-bot`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uniqueId: currentUniqueId, botType })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateStatus(`${botType} bot stopped successfully!`, 'success');
+                } else {
+                    updateStatus(data.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('Failed to stop bot: ' + error.message, 'error');
+            }
+        }
+
+        // Refresh logs
+        async function refreshLogs() {
+            if (!currentUniqueId || !selectedBot) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/bot-status/${currentUniqueId}/${selectedBot}`);
+                const data = await response.json();
+
+                if (data.logs) {
+                    document.getElementById('logsContainer').textContent = data.logs;
+                }
+            } catch (error) {
+                console.error('Failed to refresh logs:', error);
+            }
+        }
+
+        // Clear logs
+        function clearLogs() {
+            document.getElementById('logsContainer').innerHTML = '<div style="color: #6b7280; text-align: center; padding: 40px;">Logs cleared.</div>';
+        }
+
+        // Update status display
+        function updateStatus(message, type = 'info') {
+            const statusDisplay = document.getElementById('statusDisplay');
+            const statusText = document.getElementById('statusText');
+            
+            statusDisplay.style.display = 'block';
+            statusText.textContent = message;
+            statusText.className = type;
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                statusDisplay.style.display = 'none';
+            }, 5000);
+        }
+
+        // Update login status
+        function updateLoginStatus(message, type) {
+            const loginStatus = document.getElementById('loginStatus');
+            const color = type === 'error' ? '#ef4444' : type === 'success' ? '#10b981' : '#667eea';
+            loginStatus.innerHTML = `<p style="color: ${color}; text-align: center; font-size: 14px;">${message}</p>`;
+        }
+
+        // Refresh all bot statuses
+        async function refreshBotStatuses() {
+            if (!currentUniqueId) return;
+
+            const bots = ['linkedin', 'whatsapp', 'leads'];
+            
+            for (const bot of bots) {
+                try {
+                    const response = await fetch(`${API_BASE}/bot-status/${currentUniqueId}/${bot}`);
+                    const data = await response.json();
+                } catch (error) {
+                    console.error(`Failed to check ${bot} status:`, error);
+                }
+            }
+        }
+
+        // Start auto-refresh
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing interval
+            autoRefreshInterval = setInterval(() => {
+                refreshBotStatuses();
+                loadDashboardStats(); // Refresh stats every 5 seconds
+                updateDailyLimits(); // Update daily limits
+                if (selectedBot) {
+                    refreshLogs();
+                }
+            }, 5000); // Refresh every 5 seconds
+        }
+
+        // Stop auto-refresh
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Clean up on page unload
+        window.addEventListener('beforeunload', function() {
+            stopAutoRefresh();
+        });
+    </script>
+</body>
+</html>

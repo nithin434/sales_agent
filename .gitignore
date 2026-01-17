@@ -7,7 +7,8 @@ linkedin_user_data/
 # Logs
 *.log
 npm-debug.log*
-
+AI-enabled-Linkedin-workflow-main/
+Sessions/
 # Environment variables
 .env
 .env.local

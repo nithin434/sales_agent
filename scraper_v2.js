@@ -7,7 +7,7 @@ const nodemailer = require('nodemailer');
 // Session management
 const sessionId = process.env.SESSION_ID || 'default';
 const sanitizedSessionId = process.env.SANITIZED_SESSION_ID || sessionId;
-const HEADLESS = process.env.HEADLESS !== 'false';
+const HEADLESS = process.env.HEADLESS !== 'true';
 
 // Logger function
 function log(message, type = 'INFO') {

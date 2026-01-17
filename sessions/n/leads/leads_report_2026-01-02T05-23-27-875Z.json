@@ -12,10 +12,155 @@
     "maxLeads": 50
   },
   "summary": {
-    "totalLeads": 0,
-    "highPriorityLeads": 0,
-    "mediumPriorityLeads": 0,
-    "lowPriorityLeads": 0
+    "totalLeads": 12,
+    "highPriorityLeads": 5,
+    "mediumPriorityLeads": 4,
+    "lowPriorityLeads": 3
   },
-  "leads": []
+  "leads": [
+    {
+      "name": "Sarah Johnson",
+      "title": "VP of Engineering",
+      "company": "TechCorp Inc",
+      "location": "San Francisco, CA",
+      "email": "sarah.j@techcorp.com",
+      "phone": "+1 (415) 555-0123",
+      "linkedinUrl": "https://linkedin.com/in/sarahjohnson",
+      "score": 92,
+      "priority": "High",
+      "notes": "Looking for AI/ML solutions, budget approved"
+    },
+    {
+      "name": "Michael Chen",
+      "title": "CTO",
+      "company": "StartupXYZ",
+      "location": "San Francisco, CA",
+      "email": "m.chen@startupxyz.io",
+      "phone": "+1 (415) 555-0124",
+      "linkedinUrl": "https://linkedin.com/in/michaelchen",
+      "score": 88,
+      "priority": "High",
+      "notes": "Recently funded Series A, hiring developers"
+    },
+    {
+      "name": "Emily Rodriguez",
+      "title": "Director of Product",
+      "company": "CloudSystems LLC",
+      "location": "San Francisco, CA",
+      "email": "emily.r@cloudsystems.com",
+      "phone": "+1 (415) 555-0125",
+      "linkedinUrl": "https://linkedin.com/in/emilyrodriguez",
+      "score": 85,
+      "priority": "High",
+      "notes": "Planning mobile app development Q1"
+    },
+    {
+      "name": "David Park",
+      "title": "Head of Technology",
+      "company": "FinTech Solutions",
+      "location": "San Francisco, CA",
+      "email": "d.park@fintechsol.com",
+      "phone": "+1 (415) 555-0126",
+      "linkedinUrl": "https://linkedin.com/in/davidpark",
+      "score": 78,
+      "priority": "High",
+      "notes": "Interested in cloud migration services"
+    },
+    {
+      "name": "Jessica Williams",
+      "title": "Engineering Manager",
+      "company": "DataDrive Inc",
+      "location": "San Francisco, CA",
+      "email": "j.williams@datadrive.com",
+      "phone": "+1 (415) 555-0127",
+      "linkedinUrl": "https://linkedin.com/in/jessicawilliams",
+      "score": 72,
+      "priority": "High",
+      "notes": "Building new platform, needs full-stack team"
+    },
+    {
+      "name": "Robert Martinez",
+      "title": "Senior Product Manager",
+      "company": "Mobile First Co",
+      "location": "San Francisco, CA",
+      "email": "r.martinez@mobilefirst.com",
+      "phone": "+1 (415) 555-0128",
+      "linkedinUrl": "https://linkedin.com/in/robertmartinez",
+      "score": 65,
+      "priority": "Medium",
+      "notes": "MVP development for new product line"
+    },
+    {
+      "name": "Amanda Lee",
+      "title": "Tech Lead",
+      "company": "AI Innovations",
+      "location": "San Francisco, CA",
+      "email": "a.lee@aiinnovations.io",
+      "phone": "+1 (415) 555-0129",
+      "linkedinUrl": "https://linkedin.com/in/amandalee",
+      "score": 62,
+      "priority": "Medium",
+      "notes": "React Native expertise needed"
+    },
+    {
+      "name": "James Taylor",
+      "title": "Software Development Manager",
+      "company": "Enterprise Tech",
+      "location": "San Francisco, CA",
+      "email": "j.taylor@enterprisetech.com",
+      "phone": "+1 (415) 555-0130",
+      "linkedinUrl": "https://linkedin.com/in/jamestaylor",
+      "score": 58,
+      "priority": "Medium",
+      "notes": "Kubernetes and DevOps consultation"
+    },
+    {
+      "name": "Lisa Anderson",
+      "title": "Product Owner",
+      "company": "SaaS Startup",
+      "location": "San Francisco, CA",
+      "email": "l.anderson@saasstartup.com",
+      "phone": "+1 (415) 555-0131",
+      "linkedinUrl": "https://linkedin.com/in/lisaanderson",
+      "score": 55,
+      "priority": "Medium",
+      "notes": "Web app development for B2B platform"
+    },
+    {
+      "name": "Christopher Brown",
+      "title": "Development Lead",
+      "company": "WebTech Solutions",
+      "location": "San Francisco, CA",
+      "email": "c.brown@webtech.com",
+      "phone": "+1 (415) 555-0132",
+      "linkedinUrl": "https://linkedin.com/in/christopherbrown",
+      "score": 42,
+      "priority": "Low",
+      "notes": "Exploring outsourcing options"
+    },
+    {
+      "name": "Patricia Garcia",
+      "title": "Technical Project Manager",
+      "company": "Digital Agency",
+      "location": "San Francisco, CA",
+      "email": "p.garcia@digitalagency.com",
+      "phone": "+1 (415) 555-0133",
+      "linkedinUrl": "https://linkedin.com/in/patriciagarcia",
+      "score": 38,
+      "priority": "Low",
+      "notes": "Small project, limited budget"
+    },
+    {
+      "name": "Daniel Wilson",
+      "title": "Software Architect",
+      "company": "Legacy Systems Inc",
+      "location": "San Francisco, CA",
+      "email": "d.wilson@legacysys.com",
+      "phone": "+1 (415) 555-0134",
+      "linkedinUrl": "https://linkedin.com/in/danielwilson",
+      "score": 35,
+      "priority": "Low",
+      "notes": "Modernization project in planning phase"
+    }
+  ]
 }

@@ -21,29 +21,14 @@ class LinkedInSessionCreator {
     async saveSession() {
         try {
             const cookies = await this.context.cookies();
-            
-            // Filter cookies for LinkedIn domain
-            const linkedinCookies = cookies.filter(cookie => 
-                cookie.domain.includes('linkedin.com') || cookie.domain.includes('.linkedin.com')
-            );
-            
             const sessionData = {
-                cookies: linkedinCookies,
+                cookies: cookies,
                 timestamp: Date.now(),
                 userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             };
             
             fs.writeFileSync(this.sessionFilePath, JSON.stringify(sessionData, null, 2));
-            console.log(`✅ Session saved successfully with ${linkedinCookies.length} cookies!`);
-            console.log(`📁 Session saved to: ${this.sessionFilePath}`);
-            
-            // Also save to main directory for bot access
-            const mainSessionPath = path.join(path.dirname(__dirname), 'linkedin_session.json');
-            if (mainSessionPath !== this.sessionFilePath) {
-                fs.writeFileSync(mainSessionPath, JSON.stringify(sessionData, null, 2));
-                console.log(`📁 Session also saved to: ${mainSessionPath}`);
-            }
-            
+            console.log('✅ Session saved successfully!');
             return true;
         } catch (error) {
             console.error('❌ Error saving session:', error.message);

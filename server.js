@@ -7,9 +7,7 @@ const { spawn } = require('child_process');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-// Use environment variables so production can bind to external interfaces/ports
-const HOST = process.env.HOST || '0.0.0.0';
-let port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+let port = 3000;
 
 // Function to find available port
 function findAvailablePort(startPort) {
@@ -26,25 +24,40 @@ function findAvailablePort(startPort) {
 }
 
 app.use((req, res, next) => {
+    const allowedOrigins = [
+        'https://nithin434.github.io',
+        'https://nithin434.github.io/woat_launch/',
+        'https://thoroughly-judge-nomination-children.trycloudflare.com',
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001'
+    ];
+    
     const origin = req.headers.origin;
-
-    // Production-friendly: allow any origin by default so external dashboards can connect
-    res.header('Access-Control-Allow-Origin', origin || '*');
+    
+    // Allow the origin if it's in the allowed list or if there's no origin (direct access)
+    if (!origin || allowedOrigins.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin || '*');
+    } else {
+        res.header('Access-Control-Allow-Origin', '*'); // Fallback to allow all
+    }
+    
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cache-Control, Pragma');
     res.header('Access-Control-Allow-Credentials', 'false');
     res.header('Access-Control-Max-Age', '86400');
-
+    
     // Log CORS requests for debugging
     console.log(`${req.method} ${req.url} - Origin: ${origin || 'none'}`);
-
+    
     // Handle preflight OPTIONS requests
     if (req.method === 'OPTIONS') {
         console.log('Handling OPTIONS preflight request from:', origin);
         res.status(200).end();
         return;
     }
-
+    
     next();
 });
 
@@ -101,7 +114,11 @@ function sanitizeSessionId(sessionId) {
 
 // Routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'bot_interface.html'));
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dashboard.html'));
 });
 
 // Health check endpoint
@@ -906,7 +923,17 @@ app.get('/get-leads/:uniqueId', (req, res) => {
 
     try {
         if (!fs.existsSync(leadsDir)) {
-            return res.status(404).json({ success: false, message: 'No leads directory found' });
+            // Return empty leads structure if directory doesn't exist
+            return res.json({
+                success: true,
+                leads: {
+                    totalLeads: 0,
+                    highPriorityLeads: 0,
+                    mediumPriorityLeads: 0,
+                    lowPriorityLeads: 0,
+                    leads: []
+                }
+            });
         }
 
         // Collect all json reports (timestamped and default)
@@ -923,23 +950,186 @@ app.get('/get-leads/:uniqueId', (req, res) => {
             .sort((a, b) => b.mtime - a.mtime);
 
         if (files.length === 0) {
-            return res.status(404).json({ success: false, message: 'No leads reports found' });
+            return res.json({
+                success: true,
+                leads: {
+                    totalLeads: 0,
+                    highPriorityLeads: 0,
+                    mediumPriorityLeads: 0,
+                    lowPriorityLeads: 0,
+                    leads: []
+                }
+            });
         }
 
         const latest = files[0];
         const report = JSON.parse(fs.readFileSync(latest.path, 'utf8'));
 
+        // Transform report to expected format
+        const leadsData = {
+            totalLeads: report.summary?.totalLeads || report.leads?.length || 0,
+            highPriorityLeads: report.summary?.highPriorityLeads || 0,
+            mediumPriorityLeads: report.summary?.mediumPriorityLeads || 0,
+            lowPriorityLeads: report.summary?.lowPriorityLeads || 0,
+            leads: report.leads || []
+        };
+
         return res.json({
             success: true,
-            report,
+            leads: leadsData,
             fileName: latest.name,
             generatedAt: latest.mtime
         });
     } catch (error) {
         console.error('Error reading leads report:', error);
-        return res.status(500).json({ success: false, message: 'Error reading leads report' });
+        return res.json({
+            success: true,
+            leads: {
+                totalLeads: 0,
+                highPriorityLeads: 0,
+                mediumPriorityLeads: 0,
+                lowPriorityLeads: 0,
+                leads: []
+            }
+        });
     }
 });
+
+// Get all lead files for a session
+app.get('/get-lead-files/:uniqueId', (req, res) => {
+    const { uniqueId } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+
+    try {
+        if (!fs.existsSync(leadsDir)) {
+            return res.json({ success: true, files: [] });
+        }
+
+        const files = fs.readdirSync(leadsDir)
+            .filter(f => f.endsWith('.json') && f.includes('leads_report'))
+            .map(f => {
+                const fullPath = path.join(leadsDir, f);
+                const stats = fs.statSync(fullPath);
+                const report = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                
+                return {
+                    name: f,
+                    date: stats.mtime,
+                    totalLeads: report.summary?.totalLeads || report.leads?.length || 0,
+                    highPriority: report.summary?.highPriorityLeads || 0,
+                    mediumPriority: report.summary?.mediumPriorityLeads || 0,
+                    lowPriority: report.summary?.lowPriorityLeads || 0
+                };
+            })
+            .sort((a, b) => b.date - a.date);
+
+        res.json({ success: true, files });
+    } catch (error) {
+        console.error('Error getting lead files:', error);
+        res.json({ success: true, files: [] });
+    }
+});
+
+// Get specific lead file
+app.get('/get-lead-file/:uniqueId/:fileName', (req, res) => {
+    const { uniqueId, fileName } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+    const filePath = path.join(leadsDir, fileName);
+
+    try {
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ success: false, message: 'File not found' });
+        }
+
+        const report = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        
+        const leadsData = {
+            totalLeads: report.summary?.totalLeads || report.leads?.length || 0,
+            highPriorityLeads: report.summary?.highPriorityLeads || 0,
+            mediumPriorityLeads: report.summary?.mediumPriorityLeads || 0,
+            lowPriorityLeads: report.summary?.lowPriorityLeads || 0,
+            leads: report.leads || []
+        };
+
+        res.json({ success: true, leads: leadsData, fileName });
+    } catch (error) {
+        console.error('Error reading lead file:', error);
+        res.status(500).json({ success: false, message: 'Error reading file' });
+    }
+});
+
+// Download leads as Excel
+app.get('/download-leads-excel/:uniqueId/:fileName?', (req, res) => {
+    const { uniqueId, fileName } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+
+    try {
+        let filePath;
+        
+        if (fileName) {
+            filePath = path.join(leadsDir, fileName);
+        } else {
+            // Get latest file
+            const files = fs.readdirSync(leadsDir)
+                .filter(f => f.endsWith('.json'))
+                .map(f => ({
+                    name: f,
+                    path: path.join(leadsDir, f),
+                    mtime: fs.statSync(path.join(leadsDir, f)).mtime
+                }))
+                .sort((a, b) => b.mtime - a.mtime);
+            
+            if (files.length === 0) {
+                return res.status(404).json({ success: false, message: 'No leads found' });
+            }
+            filePath = files[0].path;
+        }
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ success: false, message: 'File not found' });
+        }
+
+        const report = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const leads = report.leads || [];
+
+        // Create CSV content
+        let csvContent = 'Name,Title,Company,Location,Priority,Email,Phone,LinkedIn URL,Score\n';
+        
+        leads.forEach(lead => {
+            const name = (lead.name || 'N/A').replace(/,/g, ';');
+            const title = (lead.title || 'N/A').replace(/,/g, ';');
+            const company = (lead.company || 'N/A').replace(/,/g, ';');
+            const location = (lead.location || 'N/A').replace(/,/g, ';');
+            const priority = lead.priority || getPriorityFromScore(lead.score);
+            const email = lead.email || 'N/A';
+            const phone = lead.phone || 'N/A';
+            const linkedinUrl = lead.linkedinUrl || lead.url || 'N/A';
+            const score = lead.score || 0;
+            
+            csvContent += `${name},${title},${company},${location},${priority},${email},${phone},${linkedinUrl},${score}\n`;
+        });
+
+        // Send as downloadable file
+        const downloadFileName = `leads_${uniqueId}_${new Date().toISOString().split('T')[0]}.csv`;
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+        res.send(csvContent);
+
+    } catch (error) {
+        console.error('Error creating Excel download:', error);
+        res.status(500).json({ success: false, message: 'Error creating download' });
+    }
+});
+
+function getPriorityFromScore(score) {
+    if (!score) return 'Low';
+    if (score >= 70) return 'High';
+    if (score >= 40) return 'Medium';
+    return 'Low';
+}
 
 // Download latest leads report
 app.get('/download-leads/:uniqueId', (req, res) => {
@@ -992,6 +1182,156 @@ app.get('/download-leads/:uniqueId', (req, res) => {
     console.log(`Downloading ${fileExtension.toUpperCase()} file: ${latest.path}`);
     return res.download(latest.path, fileName);
 });
+
+// Get all lead files with timestamps
+app.get('/get-lead-files/:uniqueId', (req, res) => {
+    const { uniqueId } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+
+    if (!fs.existsSync(leadsDir)) {
+        return res.json({ success: true, files: [] });
+    }
+
+    try {
+        const files = fs.readdirSync(leadsDir)
+            .filter(f => f.endsWith('.json') && f.includes('leads_report'))
+            .map(f => {
+                const fullPath = path.join(leadsDir, f);
+                const stats = fs.statSync(fullPath);
+                const report = JSON.parse(fs.readFileSync(fullPath, 'utf8'));
+                
+                return {
+                    name: f,
+                    date: stats.mtime,
+                    size: stats.size,
+                    totalLeads: report.summary?.totalLeads || 0,
+                    highPriority: report.summary?.highPriorityLeads || 0
+                };
+            })
+            .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        res.json({ success: true, files });
+    } catch (error) {
+        console.error('Error reading lead files:', error);
+        res.json({ success: false, files: [] });
+    }
+});
+
+// Get specific lead file by name
+app.get('/get-lead-file/:uniqueId/:fileName', (req, res) => {
+    const { uniqueId, fileName } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+    const filePath = path.join(leadsDir, fileName);
+
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ success: false, message: 'File not found' });
+    }
+
+    try {
+        const report = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        res.json({
+            success: true,
+            leads: {
+                totalLeads: report.summary?.totalLeads || 0,
+                highPriorityLeads: report.summary?.highPriorityLeads || 0,
+                mediumPriorityLeads: report.summary?.mediumPriorityLeads || 0,
+                lowPriorityLeads: report.summary?.lowPriorityLeads || 0,
+                leads: report.leads || []
+            },
+            generatedAt: report.generatedAt,
+            fileName: fileName
+        });
+    } catch (error) {
+        console.error('Error reading lead file:', error);
+        res.status(500).json({ success: false, message: 'Error reading file' });
+    }
+});
+
+// Download leads as Excel
+app.get('/download-leads-excel/:uniqueId/:fileName?', (req, res) => {
+    const { uniqueId, fileName } = req.params;
+    const sanitizedId = sanitizeSessionId(uniqueId);
+    const leadsDir = path.join(__dirname, 'sessions', sanitizedId, 'leads');
+
+    try {
+        let filePath;
+        
+        if (fileName) {
+            filePath = path.join(leadsDir, fileName);
+        } else {
+            // Get latest file
+            const files = fs.readdirSync(leadsDir)
+                .filter(f => f.endsWith('.json') && f.includes('leads_report'))
+                .map(f => ({
+                    name: f,
+                    path: path.join(leadsDir, f),
+                    mtime: fs.statSync(path.join(leadsDir, f)).mtime
+                }))
+                .sort((a, b) => b.mtime - a.mtime);
+            
+            if (files.length === 0) {
+                return res.status(404).json({ success: false, message: 'No leads found' });
+            }
+            
+            filePath = files[0].path;
+        }
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ success: false, message: 'File not found' });
+        }
+
+        const report = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const leads = report.leads || [];
+
+        // Create CSV content
+        const headers = ['Name', 'Title', 'Company', 'Location', 'Email', 'Phone', 'Source', 'Score', 'Priority', 'Profile URL', 'Snippet', 'Found At'];
+        const csvRows = [headers.join(',')];
+
+        leads.forEach(lead => {
+            const row = [
+                escapeCSV(lead.name || ''),
+                escapeCSV(lead.title || ''),
+                escapeCSV(lead.company || ''),
+                escapeCSV(lead.location || ''),
+                escapeCSV(lead.email || ''),
+                escapeCSV(lead.phone || ''),
+                escapeCSV(lead.source || ''),
+                lead.score || 0,
+                escapeCSV(lead.priority || getPriorityFromScore(lead.score)),
+                escapeCSV(lead.profileUrl || lead.url || ''),
+                escapeCSV((lead.snippet || lead.tweet || lead.title || '').substring(0, 200)),
+                escapeCSV(lead.foundAt || new Date().toISOString())
+            ];
+            csvRows.push(row.join(','));
+        });
+
+        const csvContent = csvRows.join('\n');
+        const downloadFileName = `leads_${uniqueId}_${new Date().toISOString().split('T')[0]}.csv`;
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
+        res.send(csvContent);
+    } catch (error) {
+        console.error('Error generating Excel export:', error);
+        res.status(500).json({ success: false, message: 'Error generating export' });
+    }
+});
+
+function escapeCSV(str) {
+    if (typeof str !== 'string') return str;
+    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+}
+
+function getPriorityFromScore(score) {
+    if (score >= 70) return 'High';
+    if (score >= 40) return 'Medium';
+    return 'Low';
+}
 
 // Stop bot
 app.post('/stop-bot', (req, res) => {
@@ -1209,12 +1549,10 @@ app.post('/remove-session', (req, res) => {
 // Start server
 async function startServer() {
     try {
-        // If PORT is provided, use it; otherwise find an open one starting at 3000
-        const portToUse = process.env.PORT ? port : await findAvailablePort(port || 3000);
-        port = portToUse;
-        app.listen(portToUse, HOST, () => {
+        port = await findAvailablePort(3000);
+        app.listen(port, '0.0.0.0', () => {
             console.log(`🚀 WOAT Bot Control Server running on http://localhost:${port}`);
-            console.log(`🌐 Server accessible at http://${HOST}:${port}`);
+            console.log(`🌐 Server accessible at http://0.0.0.0:${port}`);
             console.log('📱 Access the interface in your web browser');
             console.log('🔧 CORS enabled for all origins');
             console.log('🔍 Health check available at: /health');
